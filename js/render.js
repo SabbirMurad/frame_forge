@@ -1,5 +1,5 @@
 import { state, getNode } from './state.js';
-import { canvas, selBox, zoomLabel, canvasWrap } from './utils.js';
+import { canvas, zoomLabel, canvasWrap } from './utils.js';
 import { drawRulers } from './rulers.js';
 import { renderLayers } from './layers.js';
 import { renderProps } from './props.js';
@@ -13,10 +13,8 @@ export function applyTransform() {
 
 export function render() {
   canvas.querySelectorAll('.node').forEach(e => e.remove());
-  selBox.remove();
   const roots = state.nodes.filter(n => !n.parentId);
   roots.forEach(n => renderNode(n, canvas));
-  canvas.appendChild(selBox);
   renderLayers();
   renderProps();
 }
@@ -36,7 +34,12 @@ export function renderNode(node, parent) {
 
   if (node.type !== 'text') {
     el.style.background = node.fill;
-    el.style.border = node.strokeW > 0 ? `${node.strokeW}px solid ${node.stroke}` : 'none';
+    if (node.strokeW > 0) {
+      el.style.border = `${node.strokeW}px ${node.strokeStyle || 'solid'} ${node.stroke}`;
+      el.style.borderColor = applyStrokeOpacity(node.stroke, node.strokeOpacity);
+    } else {
+      el.style.border = 'none';
+    }
     el.style.borderRadius = node.radius + 'px';
     if (node.type === 'ellipse') el.style.borderRadius = '50%';
   } else {
@@ -82,7 +85,12 @@ export function updateNodeEl(node) {
   el.style.opacity = node.opacity;
   if (node.type !== 'text') {
     el.style.background = node.fill;
-    el.style.border = node.strokeW > 0 ? `${node.strokeW}px solid ${node.stroke}` : 'none';
+    if (node.strokeW > 0) {
+      el.style.border = `${node.strokeW}px ${node.strokeStyle || 'solid'} ${node.stroke}`;
+      el.style.borderColor = applyStrokeOpacity(node.stroke, node.strokeOpacity);
+    } else {
+      el.style.border = 'none';
+    }
     el.style.borderRadius = node.type === 'ellipse' ? '50%' : node.radius + 'px';
   } else {
     el.style.fontSize = node.fontSize + 'px';
@@ -116,4 +124,12 @@ export function fitView() {
   state.panX = cw / 2 - (minX + (maxX - minX) / 2) * z;
   state.panY = ch / 2 - (minY + (maxY - minY) / 2) * z;
   applyTransform();
+}
+
+function applyStrokeOpacity(hex, opacity) {
+  if (opacity >= 1 || hex === 'transparent') return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${opacity})`;
 }

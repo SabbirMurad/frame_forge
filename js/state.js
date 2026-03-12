@@ -16,10 +16,10 @@ export function getNode(id) {
 
 export function makeNode(type, x, y, w, h, parentId = null) {
   const defaults = {
-    frame:   { fill: '#ffffff', stroke: '#cccccc', strokeW: 1, opacity: 1, name: 'Frame' },
-    rect:    { fill: '#5b8af5', stroke: 'transparent', strokeW: 0, opacity: 1, name: 'Rectangle' },
-    ellipse: { fill: '#f55b8a', stroke: 'transparent', strokeW: 0, opacity: 1, name: 'Ellipse' },
-    text:    { fill: 'transparent', stroke: 'transparent', strokeW: 0, opacity: 1, name: 'Text', text: 'Text', fontSize: 16, fontWeight: '400', color: '#1a1a1a' },
+    frame:   { fill: '#ffffff', stroke: '#cccccc', strokeW: 1, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Frame' },
+    rect:    { fill: '#5b8af5', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Rectangle' },
+    ellipse: { fill: '#f55b8a', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Ellipse' },
+    text:    { fill: 'transparent', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Text', text: 'Text', fontSize: 16, fontWeight: '400', color: '#1a1a1a' },
   };
   const d = defaults[type] || defaults.rect;
   return {
@@ -32,6 +32,8 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     fill: d.fill,
     stroke: d.stroke,
     strokeW: d.strokeW,
+    strokeOpacity: d.strokeOpacity,
+    strokeStyle: d.strokeStyle,
     opacity: d.opacity,
     radius: 0,
     text: d.text || '',

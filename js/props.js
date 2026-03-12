@@ -61,9 +61,37 @@ export function renderProps() {
     <div class="prop-section">
       <div class="prop-section-title">Stroke</div>
       <div class="color-row">
-        <input type="color" class="color-swatch" id="p-stroke" value="${node.stroke === 'transparent' ? '#000000' : node.stroke}">
-        <input class="prop-input" id="p-stroke-hex" value="${node.stroke}" style="font-family:var(--mono);font-size:11px">
-        <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px">
+
+        <div class="prop-column">
+          <span class="prop-label">Color</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" class="color-swatch" id="p-stroke" value="${node.stroke === 'transparent' ? '#000000' : node.stroke}">
+            <input class="prop-input" id="p-stroke-hex" value="${node.stroke}" style="font-family:var(--mono);font-size:11px">
+          </div>
+        </div>
+        <div class="prop-column">
+          <span class="prop-label">Opacity</span>
+          <input class="prop-input" id="p-stroke-opacity" type="number" value="${Math.round((node.strokeOpacity ?? 1) * 100)}" min="0" max="100">
+        </div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-column">
+          <span class="prop-label">Size</span>
+          <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px">
+        </div>
+        <div class="prop-column">
+          <span class="prop-label">Opacity</span>
+          <input class="prop-input" id="p-stroke-opacity" type="number" value="${Math.round((node.strokeOpacity ?? 1) * 100)}" min="0" max="100">
+        </div>
+        <div class="prop-column">
+          <span class="prop-label-wide">Style</span>
+          <select class="prop-input" id="p-stroke-style">
+            <option ${(node.strokeStyle || 'solid') === 'solid' ? 'selected' : ''}>solid</option>
+            <option ${node.strokeStyle === 'dashed' ? 'selected' : ''}>dashed</option>
+            <option ${node.strokeStyle === 'dotted' ? 'selected' : ''}>dotted</option>
+            <option ${node.strokeStyle === 'double' ? 'selected' : ''}>double</option>
+          </select>
+        </div>
       </div>
     </div>` : `
     <div class="prop-section">
@@ -123,6 +151,9 @@ export function renderProps() {
     bindColor('p-fill', 'p-fill-hex', v => { node.fill = v; updateNodeEl(node); });
     bindColor('p-stroke', 'p-stroke-hex', v => { node.stroke = v; updateNodeEl(node); });
     bindPropNum('p-strokew', v => { node.strokeW = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-stroke-opacity', v => { node.strokeOpacity = Math.min(1, Math.max(0, v / 100)); updateNodeEl(node); });
+    const ss = document.getElementById('p-stroke-style');
+    if (ss) ss.addEventListener('change', () => { node.strokeStyle = ss.value; updateNodeEl(node); });
   } else {
     const ta = document.getElementById('p-text');
     if (ta) ta.addEventListener('input', () => { node.text = ta.value; updateNodeEl(node); });

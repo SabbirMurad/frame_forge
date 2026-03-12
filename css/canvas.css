@@ -34,10 +34,11 @@
   pointer-events: none; display: none; z-index: 50;
 }
 
+/* Canvas z-stacking */
+#canvas { z-index: 1; }
+
 /* Canvas Rulers */
-#ruler-h, #ruler-v { position: absolute; background: var(--surface); z-index: 20; pointer-events: none; }
-#ruler-h { top: 0; left: 20px; right: 0; height: 20px; border-bottom: 1px solid var(--border); }
-#ruler-v { top: 20px; left: 0; bottom: 0; width: 20px; border-right: 1px solid var(--border); }
+#ruler-h-canvas, #ruler-v-canvas { position: absolute; z-index: 20; pointer-events: none; }
 #ruler-corner { position: absolute; top: 0; left: 0; width: 20px; height: 20px; background: var(--surface); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); z-index: 21; }
 
 /* Inline Text Edit */
