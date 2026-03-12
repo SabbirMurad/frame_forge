@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #141414;
+  --surface: #1c1c1c;
+  --surface2: #242424;
+  --surface3: #2e2e2e;
+  --border: #333;
+  --border2: #3f3f3f;
+  --text: #e8e8e8;
+  --text2: #999;
+  --text3: #666;
+  --accent: #5b8af5;
+  --accent2: #3d6de0;
+  --accent-glow: rgba(91,138,245,0.15);
+  --red: #f55b5b;
+  --green: #5bf5a0;
+  --yellow: #f5d05b;
+  --panel-w: 240px;
+  --toolbar-h: 44px;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; }
+
+/* Layout */
+#app { display: grid; grid-template-rows: var(--toolbar-h) 1fr; grid-template-columns: var(--panel-w) 1fr var(--panel-w); height: 100vh; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
