@@ -1,6 +1,6 @@
 import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
-import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget } from './nodes.js';
+import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render, updateNodeEl, applyTransform } from './render.js';
 import { renderProps } from './props.js';
@@ -72,7 +72,7 @@ function onWrapMouseDown(e) {
   const cy = e.clientY - wrapRect.top;
   const world = canvasToWorld(cx, cy);
 
-  if (['frame', 'rect', 'ellipse', 'text'].includes(state.tool)) {
+  if (['container', 'text'].includes(state.tool)) {
     drawStart = { cx, cy, x: world.x, y: world.y };
     e.preventDefault();
     return;
@@ -123,11 +123,15 @@ function onWrapMouseMove(e) {
     const dx = (e.clientX - dragging.startX) / state.zoom;
     const dy = (e.clientY - dragging.startY) / state.zoom;
     if (dragging.multi) {
-      dragging.multi.forEach(({ node: n, ox, oy }) => { n.x = ox + dx; n.y = oy + dy; updateNodeEl(n); });
+      dragging.multi.forEach(({ node: n, ox, oy }) => {
+        n.x = ox + dx; n.y = oy + dy; updateNodeEl(n);
+        document.getElementById('node-' + n.id)?.classList.add('drag-source');
+      });
     } else {
       dragging.node.x = dragging.origX + dx;
       dragging.node.y = dragging.origY + dy;
       updateNodeEl(dragging.node);
+      document.getElementById('node-' + dragging.node.id)?.classList.add('drag-source');
       const wp = getWorldPos(dragging.node);
       highlightDropTarget(wp.x + dragging.node.w / 2, wp.y + dragging.node.h / 2, dragging.node.id);
     }
@@ -182,6 +186,10 @@ function onWrapMouseUp(e) {
       if (targetId !== n.parentId) {
         reparentNode(n, targetId);
         showToast(targetFrame ? `Moved into "${targetFrame.name}"` : 'Moved to canvas');
+      } else if (n.parentId) {
+        // Stayed in the same parent: a single-child wrapper keeps its child pinned top-left
+        const parent = getNode(n.parentId);
+        if (parent && SINGLE_CHILD_TYPES.includes(parent.type)) { n.x = 0; n.y = 0; }
       }
     }
     dragging = null;
@@ -230,9 +238,15 @@ function onWrapMouseUp(e) {
 
     let localX = worldX, localY = worldY;
     if (parentFrame) {
-      const pp = getWorldPos(parentFrame);
-      localX = worldX - pp.x;
-      localY = worldY - pp.y;
+      if (SINGLE_CHILD_TYPES.includes(parentFrame.type)) {
+        // Single-child wrappers pin their child to the top-left corner
+        localX = 0;
+        localY = 0;
+      } else {
+        const pp = getWorldPos(parentFrame);
+        localX = worldX - pp.x;
+        localY = worldY - pp.y;
+      }
     }
 
     const node = makeNode(state.tool, localX, localY, w, h, parentFrame ? parentFrame.id : null);
@@ -337,5 +351,7 @@ export function initCanvasEvents() {
     if (!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none';
     const addMenu = document.getElementById('add-menu');
     if (!addMenu.contains(e.target) && e.target.id !== 'btn-add-layer') addMenu.style.display = 'none';
+    const frameMenu = document.getElementById('frame-menu');
+    if (!frameMenu.contains(e.target) && !e.target.closest('#tool-frame')) frameMenu.style.display = 'none';
   });
 }

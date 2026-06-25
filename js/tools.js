@@ -5,6 +5,9 @@ import { renderProps } from './props.js';
 import { undo, redo } from './history.js';
 import { deleteSelected, duplicateSelected, groupSelected, ungroupSelected, bringToFront, sendToBack } from './operations.js';
 
+// Tool to restore after a temporary space-bar pan (null = not space-panning)
+let spacePanPrev = null;
+
 export function setTool(tool) {
   state.tool = tool;
   document.querySelectorAll('.tool-btn[data-tool]').forEach(b =>
@@ -35,6 +38,16 @@ export function initToolEvents() {
     const tag = document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
+    // Hold space → temporary hand/pan tool
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (spacePanPrev === null && state.tool !== 'hand') {
+        spacePanPrev = state.tool;
+        setTool('hand');
+      }
+      return;
+    }
+
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicateSelected(); return; }
@@ -45,9 +58,8 @@ export function initToolEvents() {
     if (e.key === 'Escape') { state.selected.clear(); setTool('select'); render(); return; }
     if (e.key === 'v' || e.key === 'V') setTool('select');
     if (e.key === 'h' || e.key === 'H') setTool('hand');
-    if (e.key === 'f' || e.key === 'F') setTool('frame');
-    if (e.key === 'r' || e.key === 'R') setTool('rect');
-    if (e.key === 'e' || e.key === 'E') setTool('ellipse');
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.getElementById('tool-frame').click(); }
+    if (e.key === 'r' || e.key === 'R') setTool('container');
     if (e.key === 't' || e.key === 'T') setTool('text');
     if (e.key === '0') fitView();
     if (e.key === '+' || e.key === '=') zoomAt(1.25);
@@ -66,6 +78,22 @@ export function initToolEvents() {
         updateNodeEl(n);
       });
       renderProps();
+    }
+  });
+
+  // Release space → restore the tool that was active before space-panning
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space' && spacePanPrev !== null) {
+      setTool(spacePanPrev);
+      spacePanPrev = null;
+    }
+  });
+
+  // Safety: if focus is lost while space is held, restore the tool
+  window.addEventListener('blur', () => {
+    if (spacePanPrev !== null) {
+      setTool(spacePanPrev);
+      spacePanPrev = null;
     }
   });
 }

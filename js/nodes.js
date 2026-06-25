@@ -1,5 +1,22 @@
 import { state, getNode } from './state.js';
 
+// Types that can contain children (valid drop targets)
+export const CONTAINER_TYPES = ['frame', 'container', 'row', 'column', 'wrap', 'stack'];
+// Wrappers that hold exactly one child; the rest are multi-child layouts
+export const SINGLE_CHILD_TYPES = ['frame', 'container'];
+// Multi-child layout types (row/column/wrap are flex, stack is absolute)
+export const MULTI_CHILD_TYPES = ['row', 'column', 'wrap', 'stack'];
+
+// Whether `node` can accept `childId` as a child right now.
+// Multi-child layouts always can; single-child wrappers only if empty
+// (ignoring childId itself, so an existing child can be re-dropped/moved within).
+export function canAcceptChild(node, childId = null) {
+  if (!node || !CONTAINER_TYPES.includes(node.type)) return false;
+  if (!SINGLE_CHILD_TYPES.includes(node.type)) return true;
+  const kids = (node.children || []).filter(id => id !== childId);
+  return kids.length === 0;
+}
+
 export function canvasToWorld(cx, cy) {
   return {
     x: (cx - state.panX) / state.zoom,
@@ -32,7 +49,7 @@ export function isDescendant(nodeId, ancestorId) {
 
 export function findFrameAt(wx, wy, excludeId = null) {
   const frames = [...state.nodes].reverse().filter(n =>
-    n.type === 'frame' && n.id !== excludeId && !isDescendant(n.id, excludeId)
+    n.id !== excludeId && !isDescendant(n.id, excludeId) && canAcceptChild(n, excludeId)
   );
   for (const frame of frames) {
     const wp = getWorldPos(frame);
@@ -59,9 +76,15 @@ export function reparentNode(node, newParentId) {
     const newParent = getNode(newParentId);
     if (newParent) {
       if (!newParent.children.includes(node.id)) newParent.children.push(node.id);
-      const newWp = getWorldPos(newParent);
-      node.x = wp.x - newWp.x;
-      node.y = wp.y - newWp.y;
+      if (SINGLE_CHILD_TYPES.includes(newParent.type)) {
+        // Single-child wrappers pin their child to the top-left corner
+        node.x = 0;
+        node.y = 0;
+      } else {
+        const newWp = getWorldPos(newParent);
+        node.x = wp.x - newWp.x;
+        node.y = wp.y - newWp.y;
+      }
     }
   } else {
     node.x = wp.x;

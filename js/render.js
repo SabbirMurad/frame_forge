@@ -1,4 +1,5 @@
 import { state, getNode } from './state.js';
+import { SINGLE_CHILD_TYPES, MULTI_CHILD_TYPES } from './nodes.js';
 import { canvas, zoomLabel, canvasWrap } from './utils.js';
 import { drawRulers } from './rulers.js';
 import { renderLayers } from './layers.js';
@@ -19,16 +20,78 @@ export function render() {
   renderProps();
 }
 
+export const FLEX_TYPES = ['row', 'column', 'wrap'];
+
+// Lay out a node's children with flexbox (auto-layout) instead of absolute positions
+function applyFlexLayout(el, node) {
+  el.style.display = node.visible ? 'flex' : 'none';
+  el.style.alignContent = 'flex-start';
+  if (node.type === 'row') {
+    el.style.flexDirection = 'row'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
+  } else if (node.type === 'column') {
+    el.style.flexDirection = 'column'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
+  } else if (node.type === 'wrap') {
+    el.style.flexDirection = 'row'; el.style.flexWrap = 'wrap'; el.style.gap = node.gapV + 'px ' + node.gapH + 'px';
+  }
+}
+
+// Place a node based on its parent:
+//  - flex parent (row/column/wrap)   → flex item, auto-laid-out
+//  - single-child wrapper (frame/container) → pinned to the top-left corner
+//  - stack or canvas root             → free absolute positioning (x/y)
+function applyPosition(el, node) {
+  const parentNode = node.parentId ? getNode(node.parentId) : null;
+  if (parentNode && FLEX_TYPES.includes(parentNode.type)) {
+    el.style.position = 'relative';
+    el.style.left = '';
+    el.style.top = '';
+    el.style.flex = '0 0 auto';
+  } else if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type)) {
+    el.style.position = 'absolute';
+    el.style.flex = '';
+    el.style.left = '0px';
+    el.style.top = '0px';
+  } else {
+    el.style.position = 'absolute';
+    el.style.flex = '';
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+  }
+}
+
+// Paint an image node's picture as its background (call after setting the fill)
+const IMAGE_FIT = { cover: 'cover', contain: 'contain', fill: '100% 100%', fitWidth: '100% auto', fitHeight: 'auto 100%' };
+function applyImage(el, node) {
+  if (node.type === 'image' && node.src) {
+    el.style.backgroundImage = `url("${node.src}")`;
+    el.style.backgroundSize = IMAGE_FIT[node.fit] || 'cover';
+    el.style.backgroundPosition = 'center';
+    el.style.backgroundRepeat = 'no-repeat';
+  } else {
+    el.style.backgroundImage = '';
+  }
+}
+
+// Size a node: layout types (row/column/wrap/stack) fill their single-child wrapper parent
+function applySize(el, node) {
+  const parentNode = node.parentId ? getNode(node.parentId) : null;
+  if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type) && MULTI_CHILD_TYPES.includes(node.type)) {
+    el.style.width = '100%';
+    el.style.height = '100%';
+  } else {
+    el.style.width = node.w + 'px';
+    el.style.height = node.h + 'px';
+  }
+}
+
 export function renderNode(node, parent) {
   const el = document.createElement('div');
   el.className = 'node ' + (node.type === 'text' ? 'text-node' : node.type);
   el.id = 'node-' + node.id;
   el.dataset.id = node.id;
 
-  el.style.left = node.x + 'px';
-  el.style.top = node.y + 'px';
-  el.style.width = node.w + 'px';
-  el.style.height = node.h + 'px';
+  applyPosition(el, node);
+  applySize(el, node);
   el.style.opacity = node.opacity;
   el.style.display = node.visible ? '' : 'none';
 
@@ -40,8 +103,9 @@ export function renderNode(node, parent) {
     } else {
       el.style.border = 'none';
     }
-    el.style.borderRadius = node.radius + 'px';
-    if (node.type === 'ellipse') el.style.borderRadius = '50%';
+    el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    applyImage(el, node);
+    if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     el.style.fontSize = node.fontSize + 'px';
     el.style.fontWeight = node.fontWeight;
@@ -52,7 +116,7 @@ export function renderNode(node, parent) {
 
   if (state.selected.has(node.id)) {
     el.classList.add('selected');
-    addHandles(el);
+    if (node.type !== 'frame') addHandles(el);
   }
 
   if (node.children && node.children.length) {
@@ -78,10 +142,8 @@ function addHandles(el) {
 export function updateNodeEl(node) {
   const el = document.getElementById('node-' + node.id);
   if (!el) return;
-  el.style.left = node.x + 'px';
-  el.style.top = node.y + 'px';
-  el.style.width = node.w + 'px';
-  el.style.height = node.h + 'px';
+  applyPosition(el, node);
+  applySize(el, node);
   el.style.opacity = node.opacity;
   if (node.type !== 'text') {
     el.style.background = node.fill;
@@ -91,7 +153,9 @@ export function updateNodeEl(node) {
     } else {
       el.style.border = 'none';
     }
-    el.style.borderRadius = node.type === 'ellipse' ? '50%' : node.radius + 'px';
+    el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    applyImage(el, node);
+    if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     el.style.fontSize = node.fontSize + 'px';
     el.style.fontWeight = node.fontWeight;

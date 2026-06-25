@@ -13,8 +13,6 @@
 
   <!-- TOOLBAR -->
   <div id="toolbar">
-    <span class="toolbar-logo">FF</span>
-
     <div class="tool-group">
       <button class="tool-btn active" id="tool-select" data-tool="select" data-tooltip="Select (V)">
         <img src="icons/select.svg" alt="Select" width="14" height="14">
@@ -25,17 +23,32 @@
     </div>
 
     <div class="tool-group">
-      <button class="tool-btn" data-tool="frame" data-tooltip="Frame (F)">
+      <button class="tool-btn" id="tool-frame" data-tooltip="Frame (F)">
         <img src="icons/frame.svg" alt="Frame" width="14" height="14">
       </button>
-      <button class="tool-btn" data-tool="rect" data-tooltip="Rectangle (R)">
-        <img src="icons/rectangle.svg" alt="Rectangle" width="14" height="14">
-      </button>
-      <button class="tool-btn" data-tool="ellipse" data-tooltip="Ellipse (E)">
-        <img src="icons/ellipse.svg" alt="Ellipse" width="14" height="14">
+      <button class="tool-btn" data-tool="container" data-tooltip="Container (R)">
+        <img src="icons/rectangle.svg" alt="Container" width="14" height="14">
       </button>
       <button class="tool-btn" data-tool="text" data-tooltip="Text (T)">
         <img src="icons/text.svg" alt="Text" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-image" data-tooltip="Image">
+        <img src="icons/image.svg" alt="Image" width="14" height="14">
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <button class="tool-btn" id="tool-row" data-tooltip="Row (flex)">
+        <img src="icons/row.svg" alt="Row" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-column" data-tooltip="Column (flex)">
+        <img src="icons/column.svg" alt="Column" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-wrap" data-tooltip="Wrap (flex)">
+        <img src="icons/wrap.svg" alt="Wrap" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-stack" data-tooltip="Stack (overlap)">
+        <img src="icons/stack.svg" alt="Stack" width="14" height="14">
       </button>
     </div>
 
@@ -57,22 +70,32 @@
       </button>
     </div>
 
-    <div class="toolbar-spacer"></div>
-    <div class="toolbar-right">
-      <button class="tool-btn" id="btn-zoom-out" data-tooltip="Zoom Out (-)">&#8722;</button>
-      <span class="zoom-display" id="zoom-label">100%</span>
-      <button class="tool-btn" id="btn-zoom-in" data-tooltip="Zoom In (+)">+</button>
-      <button class="tool-btn" id="btn-fit" data-tooltip="Fit (0)" style="font-size:11px;font-family:var(--mono)">fit</button>
-    </div>
+  </div>
+
+  <!-- ZOOM CONTROLS -->
+  <div class="toolbar-right">
+    <button class="tool-btn" id="btn-zoom-out" data-tooltip="Zoom Out (-)">&#8722;</button>
+    <span class="zoom-display" id="zoom-label">100%</span>
+    <button class="tool-btn" id="btn-zoom-in" data-tooltip="Zoom In (+)">+</button>
+    <button class="tool-btn" id="btn-fit" data-tooltip="Fit (0)" style="font-size:12px;font-family:var(--mono)">fit</button>
   </div>
 
   <!-- LAYERS PANEL -->
   <div id="layers-panel">
-    <div class="panel-header">
-      <span class="panel-title">Layers</span>
-      <button class="panel-action" id="btn-add-layer" title="Add element">+</button>
+    <div id="mode-tabs">
+      <button class="mode-tab active" data-mode="design">Design</button>
+      <button class="mode-tab" data-mode="model">Model</button>
+      <button class="mode-tab" data-mode="api">API</button>
+      <button class="mode-tab" data-mode="database">Database</button>
     </div>
-    <div id="layers-list"></div>
+    <div id="design-view">
+      <div class="panel-header">
+        <span class="panel-title">Layers</span>
+        <button class="panel-action" id="btn-add-layer" title="Add element">+</button>
+      </div>
+      <div id="layers-list"></div>
+    </div>
+    <div id="mode-placeholder" style="display:none"></div>
   </div>
 
   <!-- CANVAS -->
@@ -108,11 +131,32 @@
 
 <!-- Add Menu -->
 <div id="add-menu">
-  <div class="ctx-item" data-addtype="frame">&#x1F5BC; Frame</div>
-  <div class="ctx-item" data-addtype="rect">&#x25AD; Rectangle</div>
-  <div class="ctx-item" data-addtype="ellipse">&#x2B24; Ellipse</div>
+  <div class="ctx-item" data-addtype="container">&#x25AD; Container</div>
+  <div class="ctx-item" data-addtype="row">&#x2630; Row</div>
+  <div class="ctx-item" data-addtype="column">&#x2637; Column</div>
+  <div class="ctx-item" data-addtype="wrap">&#x25A6; Wrap</div>
+  <div class="ctx-item" data-addtype="stack">&#x29C9; Stack</div>
   <div class="ctx-item" data-addtype="text">T Text</div>
 </div>
+
+<!-- Frame Preset Menu -->
+<div id="frame-menu">
+  <div class="frame-menu-cat">Phone</div>
+  <div class="frame-menu-item" data-w="402" data-h="874"><span>iPhone 17</span><span class="frame-dim">402&#215;874</span></div>
+  <div class="frame-menu-item" data-w="402" data-h="874"><span>iPhone 16 &amp; 17 Pro</span><span class="frame-dim">402&#215;874</span></div>
+  <div class="frame-menu-item" data-w="393" data-h="852"><span>iPhone 16</span><span class="frame-dim">393&#215;852</span></div>
+  <div class="frame-menu-item" data-w="440" data-h="956"><span>iPhone 16 &amp; 17 Pro Max</span><span class="frame-dim">440&#215;956</span></div>
+  <div class="frame-menu-item" data-w="430" data-h="932"><span>iPhone 16 Plus</span><span class="frame-dim">430&#215;932</span></div>
+  <div class="frame-menu-item" data-w="420" data-h="912"><span>iPhone Air</span><span class="frame-dim">420&#215;912</span></div>
+  <div class="frame-menu-item" data-w="430" data-h="932"><span>iPhone 14 &amp; 15 Pro Max</span><span class="frame-dim">430&#215;932</span></div>
+  <div class="frame-menu-item" data-w="393" data-h="852"><span>iPhone 14 &amp; 15 Pro</span><span class="frame-dim">393&#215;852</span></div>
+  <div class="frame-menu-item" data-w="390" data-h="844"><span>iPhone 13 &amp; 14</span><span class="frame-dim">390&#215;844</span></div>
+  <div class="frame-menu-item" data-w="428" data-h="926"><span>iPhone 14 Plus</span><span class="frame-dim">428&#215;926</span></div>
+  <div class="frame-menu-item" data-w="412" data-h="917"><span>Android Compact</span><span class="frame-dim">412&#215;917</span></div>
+  <div class="frame-menu-item" data-w="700" data-h="840"><span>Android Medium</span><span class="frame-dim">700&#215;840</span></div>
+</div>
+
+<input type="file" id="image-input" accept="image/*" style="display:none">
 
 <div id="toast"></div>
 

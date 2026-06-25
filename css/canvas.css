@@ -1,6 +1,6 @@
 /* Canvas Area */
 #canvas-wrap { position: relative; overflow: hidden; background: var(--bg); cursor: default; }
-#canvas { position: absolute; transform-origin: 0 0; }
+#canvas { position: absolute; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
 
 /* Nodes */
 .node {
@@ -9,9 +9,10 @@
 }
 .node.selected { outline: 2px solid var(--accent); outline-offset: 0; }
 .node.frame { background: white; overflow: hidden; }
-.node.frame.drop-target { outline: 2px dashed var(--accent) !important; outline-offset: -2px; }
-.node.rect { background: #5b8af5; }
-.node.ellipse { background: #f55b8a; border-radius: 50%; }
+.node.drop-target { outline: 2px dashed var(--accent) !important; outline-offset: -2px; }
+/* The element being dragged is dimmed so the drop-target outline beneath stays visible */
+.node.drag-source { opacity: 0.45 !important; }
+.node.container { background: #5b8af5; }
 .node.text-node { background: transparent; cursor: text; white-space: pre-wrap; word-break: break-word; }
 
 /* Resize Handles */

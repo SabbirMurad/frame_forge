@@ -1,6 +1,6 @@
 import { state, getNode, makeNode } from './state.js';
-import { canvasWrap, addMenu, closeMenus, showToast } from './utils.js';
-import { canvasToWorld } from './nodes.js';
+import { canvasWrap, addMenu, frameMenu, closeMenus, showToast } from './utils.js';
+import { canvasToWorld, canAcceptChild, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render, applyTransform } from './render.js';
 import { initCanvasEvents } from './canvas.js';
@@ -20,33 +20,133 @@ document.getElementById('btn-add-layer').addEventListener('click', e => {
   e.stopPropagation();
 });
 
-addMenu.addEventListener('click', e => {
-  const item = e.target.closest('.ctx-item');
-  if (!item) return;
-  const type = item.dataset.addtype;
+// Resolve where a new w×h node of `type` should be placed: parent (if a selected
+// container/frame can accept it) and the local x/y within that parent or the canvas.
+function resolvePlacement(type, w, h) {
   const cx = canvasWrap.offsetWidth / 2;
   const cy = canvasWrap.offsetHeight / 2;
   const world = canvasToWorld(cx, cy);
-  const defaults = { frame: [240, 160], rect: [120, 80], ellipse: [100, 100], text: [120, 40] };
-  const [w, h] = defaults[type] || [100, 100];
 
-  let parentFrame = null;
+  let parent = null;
   if (type !== 'frame' && state.selected.size === 1) {
     const selNode = getNode([...state.selected][0]);
-    if (selNode && selNode.type === 'frame') parentFrame = selNode;
+    if (canAcceptChild(selNode)) parent = selNode;
   }
 
-  let localX, localY;
-  if (parentFrame) {
-    localX = parentFrame.w / 2 - w / 2;
-    localY = parentFrame.h / 2 - h / 2;
+  let x, y;
+  if (parent) {
+    // Single-child wrappers pin to top-left; otherwise center within the parent
+    if (SINGLE_CHILD_TYPES.includes(parent.type)) { x = 0; y = 0; }
+    else { x = parent.w / 2 - w / 2; y = parent.h / 2 - h / 2; }
   } else {
-    localX = world.x - w / 2;
-    localY = world.y - h / 2;
+    x = world.x - w / 2;
+    y = world.y - h / 2;
   }
+  return { parent, x, y };
+}
 
-  const node = makeNode(type, localX, localY, w, h, parentFrame ? parentFrame.id : null);
-  if (parentFrame) parentFrame.children.push(node.id);
+function finalizeNew(node, parent) {
+  if (parent) parent.children.push(node.id);
+  state.nodes.push(node);
+  state.selected.clear();
+  state.selected.add(node.id);
+  saveHistory();
+  render();
+}
+
+// Create an element at the canvas center, nesting into a selected container/frame if possible
+function createElement(type) {
+  const defaults = { frame: [240, 160], container: [120, 80], row: [200, 200], column: [200, 200], wrap: [200, 200], stack: [200, 200], text: [120, 40] };
+  const [w, h] = defaults[type] || [100, 100];
+  const { parent, x, y } = resolvePlacement(type, w, h);
+  const node = makeNode(type, x, y, w, h, parent ? parent.id : null);
+  finalizeNew(node, parent);
+}
+
+function createImageNode(src, w, h) {
+  const { parent, x, y } = resolvePlacement('image', w, h);
+  const node = makeNode('image', x, y, w, h, parent ? parent.id : null);
+  node.src = src;
+  finalizeNew(node, parent);
+}
+
+addMenu.addEventListener('click', e => {
+  const item = e.target.closest('.ctx-item');
+  if (!item) return;
+  createElement(item.dataset.addtype);
+  closeMenus();
+});
+
+// Image tool — open the file picker, then place the chosen image (scaled to a sane size)
+const imageInput = document.getElementById('image-input');
+document.getElementById('tool-image').addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', () => {
+  const file = imageInput.files[0];
+  imageInput.value = ''; // allow re-picking the same file later
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const src = reader.result;
+    const probe = new Image();
+    probe.onload = () => {
+      let w = probe.naturalWidth || 200;
+      let h = probe.naturalHeight || 200;
+      const max = 320;
+      if (w > max || h > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      createImageNode(src, w, h);
+      showToast(`Added "${file.name}"`);
+    };
+    probe.src = src;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Layout tools create a fixed 200x200 element on click (no drag-to-size needed)
+['row', 'column', 'wrap', 'stack'].forEach(type => {
+  const btn = document.getElementById('tool-' + type);
+  if (btn) btn.addEventListener('click', () => createElement(type));
+});
+
+// Left-panel mode tabs (Design / Model / API / Database)
+const modeTabs = document.querySelectorAll('.mode-tab');
+const designView = document.getElementById('design-view');
+const modePlaceholder = document.getElementById('mode-placeholder');
+modeTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    modeTabs.forEach(t => t.classList.toggle('active', t === tab));
+    const isDesign = tab.dataset.mode === 'design';
+    designView.style.display = isDesign ? '' : 'none';
+    modePlaceholder.style.display = isDesign ? 'none' : 'flex';
+    if (!isDesign) modePlaceholder.textContent = tab.textContent + ' view — coming soon';
+  });
+});
+
+// Frame preset menu — opens above the frame tool button (toolbar is bottom-anchored)
+const frameBtn = document.getElementById('tool-frame');
+frameBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = frameMenu.style.display === 'block';
+  closeMenus();
+  if (open) return;
+  frameMenu.style.display = 'block';
+  const r = frameBtn.getBoundingClientRect();
+  let left = r.left + r.width / 2 - frameMenu.offsetWidth / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - frameMenu.offsetWidth - 8));
+  frameMenu.style.left = left + 'px';
+  frameMenu.style.top = (r.top - frameMenu.offsetHeight - 8) + 'px';
+});
+
+frameMenu.addEventListener('click', e => {
+  const item = e.target.closest('.frame-menu-item');
+  if (!item) return;
+  const w = parseInt(item.dataset.w, 10);
+  const h = parseInt(item.dataset.h, 10);
+  const cx = canvasWrap.offsetWidth / 2;
+  const cy = canvasWrap.offsetHeight / 2;
+  const world = canvasToWorld(cx, cy);
+
+  const node = makeNode('frame', world.x - w / 2, world.y - h / 2, w, h, null);
+  node.name = 'Frame_' + state.nextFrameNum++;
   state.nodes.push(node);
   state.selected.clear();
   state.selected.add(node.id);
@@ -59,4 +159,4 @@ addMenu.addEventListener('click', e => {
 saveHistory();
 applyTransform();
 render();
-showToast('FrameForge ready \u2014 press V to select, R for rect, T for text');
+showToast('FrameForge ready \u2014 press V to select, R for container, T for text');

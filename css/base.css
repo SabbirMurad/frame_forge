@@ -18,16 +18,16 @@
   --red: #f55b5b;
   --green: #5bf5a0;
   --yellow: #f5d05b;
-  --panel-w: 240px;
+  --panel-w: 300px;
   --toolbar-h: 44px;
   --mono: 'IBM Plex Mono', monospace;
   --sans: 'IBM Plex Sans', sans-serif;
 }
 
-html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
 
 /* Layout */
-#app { display: grid; grid-template-rows: var(--toolbar-h) 1fr; grid-template-columns: var(--panel-w) 1fr var(--panel-w); height: 100vh; }
+#app { display: grid; grid-template-rows: 1fr; grid-template-columns: var(--panel-w) 1fr var(--panel-w); height: 100vh; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

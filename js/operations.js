@@ -56,11 +56,13 @@ export function groupSelected() {
   const minY = Math.min(...nodes.map(n => n.y));
   const maxX = Math.max(...nodes.map(n => n.x + n.w));
   const maxY = Math.max(...nodes.map(n => n.y + n.h));
-  const group = makeNode('frame', minX - 8, minY - 8, maxX - minX + 16, maxY - minY + 16);
+  // A group is a multi-child, freely-positioned box → a stack (not a single-child frame)
+  const group = makeNode('stack', minX - 8, minY - 8, maxX - minX + 16, maxY - minY + 16);
   group.name = 'Group';
   group.fill = 'transparent';
   group.stroke = '#888';
   group.strokeW = 1;
+  group.strokeStyle = 'solid';
   group.children = ids;
   nodes.forEach(n => { n.parentId = group.id; n.x -= group.x; n.y -= group.y; });
   ids.forEach(id => { const i = state.nodes.findIndex(n => n.id === id); if (i !== -1) state.nodes.splice(i, 1); });

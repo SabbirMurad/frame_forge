@@ -1,6 +1,6 @@
 import { state, getNode } from './state.js';
 import { layersList, showToast } from './utils.js';
-import { isDescendant, reparentNode } from './nodes.js';
+import { isDescendant, reparentNode, canAcceptChild } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render } from './render.js';
 
@@ -27,7 +27,8 @@ export function renderLayers() {
 }
 
 function buildLayerItem(node, depth) {
-  const icons = { frame: '\u{1F5BC}', rect: '\u25AD', ellipse: '\u2B24', text: 'T' };
+  const icons = { frame: '\u{1F5BC}', container: '\u25AD', row: '\u2630', column: '\u2637', wrap: '\u25A6', stack: '\u29C9', image: '\u{1F4F7}', text: 'T' };
+  const icon = node.type === 'container' && node.shape === 'circle' ? '\u2B24' : (icons[node.type] || '\u25AD');
   const item = document.createElement('div');
   item.className = 'layer-item' +
     (state.selected.has(node.id) ? ' selected' : '') +
@@ -38,7 +39,7 @@ function buildLayerItem(node, depth) {
   item.innerHTML = `
     <span class="layer-grip">\u2807</span>
     <div class="layer-indent" style="padding-left:${depth * 14}px;display:flex;align-items:center;gap:6px;flex:1;overflow:hidden">
-      <span class="layer-icon">${icons[node.type] || '\u25AD'}</span>
+      <span class="layer-icon">${icon}</span>
       <span class="layer-name">${node.name}</span>
     </div>
     <span class="layer-vis" title="Toggle visibility">${node.visible ? '\u{1F441}' : '\u{1F512}'}</span>
@@ -65,6 +66,7 @@ function buildLayerItem(node, depth) {
 
 // Layer drag-and-drop
 let layerDrag = null;
+let containerDndInit = false;
 
 function initLayerDnd() {
   layerFlatList.forEach(({ node, el }) => {
@@ -91,10 +93,16 @@ function initLayerDnd() {
       e.dataTransfer.dropEffect = 'move';
     });
 
-    el.addEventListener('dragleave', () => clearLayerDndUI());
+    // Only clear when the cursor actually leaves the item (not when crossing its child spans)
+    el.addEventListener('dragleave', e => {
+      if (!el.contains(e.relatedTarget)) {
+        el.classList.remove('drag-above', 'drag-below', 'drag-into');
+      }
+    });
 
     el.addEventListener('drop', e => {
       e.preventDefault();
+      e.stopPropagation(); // prevent the list-level "move to root" handler from also firing
       if (!layerDrag || layerDrag.nodeId === node.id) return;
       if (isDescendant(node.id, layerDrag.nodeId)) return;
       const srcNode = getNode(layerDrag.nodeId);
@@ -105,25 +113,32 @@ function initLayerDnd() {
     });
   });
 
-  layersList.addEventListener('dragover', e => { e.preventDefault(); });
-  layersList.addEventListener('drop', e => {
-    e.preventDefault();
-    if (!layerDrag) return;
-    const srcNode = getNode(layerDrag.nodeId);
-    if (!srcNode) return;
-    reparentNode(srcNode, null);
-    const i = state.nodes.findIndex(n => n.id === srcNode.id);
-    if (i !== -1) { state.nodes.splice(i, 1); state.nodes.unshift(srcNode); }
-    saveHistory();
-    render();
-  });
+  // Attach the list-level listeners once — layersList persists across renders,
+  // so re-adding them every renderLayers() would stack duplicate handlers.
+  if (!containerDndInit) {
+    containerDndInit = true;
+    layersList.addEventListener('dragover', e => { e.preventDefault(); });
+    layersList.addEventListener('drop', e => {
+      e.preventDefault();
+      if (e.target !== layersList) return; // only handle drops on empty list area
+      if (!layerDrag) return;
+      const srcNode = getNode(layerDrag.nodeId);
+      if (!srcNode) return;
+      reparentNode(srcNode, null);
+      const i = state.nodes.findIndex(n => n.id === srcNode.id);
+      if (i !== -1) { state.nodes.splice(i, 1); state.nodes.unshift(srcNode); }
+      saveHistory();
+      render();
+    });
+  }
 }
 
 function getDndZone(e, el, targetNode) {
   const rect = el.getBoundingClientRect();
   const relY = e.clientY - rect.top;
   const pct = relY / rect.height;
-  if (targetNode.type === 'frame') {
+  const draggedId = layerDrag ? layerDrag.nodeId : null;
+  if (canAcceptChild(targetNode, draggedId)) {
     if (pct < 0.25) return 'above';
     if (pct > 0.75) return 'below';
     return 'into';
@@ -138,7 +153,8 @@ function clearLayerDndUI() {
 }
 
 function applyLayerDrop(srcNode, targetNode, zone) {
-  if (zone === 'into' && targetNode.type === 'frame') {
+  if (zone === 'into' && canAcceptChild(targetNode, srcNode.id)) {
+    // reparentNode positions the child per parent type (pinned for frame/container)
     reparentNode(srcNode, targetNode.id);
     targetNode.children = targetNode.children.filter(id => id !== srcNode.id);
     targetNode.children.push(srcNode.id);

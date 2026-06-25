@@ -6,6 +6,8 @@ export const state = {
   panX: 60,
   panY: 60,
   nextId: 1,
+  nextFrameNum: 1,
+  nextContainerNum: 1,
   history: [],
   historyIndex: -1,
 };
@@ -16,13 +18,17 @@ export function getNode(id) {
 
 export function makeNode(type, x, y, w, h, parentId = null) {
   const defaults = {
-    frame:   { fill: '#ffffff', stroke: '#cccccc', strokeW: 1, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Frame' },
-    rect:    { fill: '#5b8af5', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Rectangle' },
-    ellipse: { fill: '#f55b8a', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Ellipse' },
-    text:    { fill: 'transparent', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Text', text: 'Text', fontSize: 16, fontWeight: '400', color: '#1a1a1a' },
+    frame:     { fill: '#ffffff', stroke: '#cccccc', strokeW: 1, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Frame' },
+    container: { fill: '#5b8af5', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Container' },
+    row:       { fill: 'transparent', stroke: '#c7c7c7', strokeW: 1, strokeOpacity: 1, strokeStyle: 'dashed', opacity: 1, name: 'Row' },
+    column:    { fill: 'transparent', stroke: '#c7c7c7', strokeW: 1, strokeOpacity: 1, strokeStyle: 'dashed', opacity: 1, name: 'Column' },
+    wrap:      { fill: 'transparent', stroke: '#c7c7c7', strokeW: 1, strokeOpacity: 1, strokeStyle: 'dashed', opacity: 1, name: 'Wrap' },
+    stack:     { fill: 'transparent', stroke: '#c7c7c7', strokeW: 1, strokeOpacity: 1, strokeStyle: 'dashed', opacity: 1, name: 'Stack' },
+    image:     { fill: 'transparent', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Image' },
+    text:      { fill: 'transparent', stroke: 'transparent', strokeW: 0, strokeOpacity: 1, strokeStyle: 'solid', opacity: 1, name: 'Text', text: 'Text', fontSize: 16, fontWeight: '400', color: '#1a1a1a' },
   };
-  const d = defaults[type] || defaults.rect;
-  return {
+  const d = defaults[type] || defaults.container;
+  const node = {
     id: 'n' + (state.nextId++),
     type, x, y, w, h, parentId,
     children: [],
@@ -36,10 +42,18 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     strokeStyle: d.strokeStyle,
     opacity: d.opacity,
     radius: 0,
+    shape: 'rect',
+    src: '',
+    fit: 'cover',
+    gap: 8,
+    gapH: 8,
+    gapV: 8,
     text: d.text || '',
     fontSize: d.fontSize || 14,
     fontWeight: d.fontWeight || '400',
     color: d.color || '#000000',
     constraints: { h: 'left', v: 'top' },
   };
+  if (type === 'container') node.name = 'Container_' + state.nextContainerNum++;
+  return node;
 }
