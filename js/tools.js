@@ -37,6 +37,8 @@ export function initToolEvents() {
   document.addEventListener('keydown', e => {
     const tag = document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    // Design shortcuts (tools, delete, group, zoom…) only apply in the Design tab
+    if (!document.body.classList.contains('design-mode')) return;
 
     // Hold space → temporary hand/pan tool
     if (e.code === 'Space') {

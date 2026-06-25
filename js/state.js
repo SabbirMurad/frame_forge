@@ -10,6 +10,15 @@ export const state = {
   nextContainerNum: 1,
   history: [],
   historyIndex: -1,
+  // Model tab: data models (entities) with typed properties
+  models: [],
+  nextModelId: 1,
+  nextPropId: 1,
+  // API tab: endpoints sharing one base URL
+  apis: [],
+  apiBaseUrl: '',
+  nextApiId: 1,
+  nextHeaderId: 1,
 };
 
 export function getNode(id) {
@@ -52,7 +61,7 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     fontSize: d.fontSize || 14,
     fontWeight: d.fontWeight || '400',
     color: d.color || '#000000',
-    constraints: { h: 'left', v: 'top' },
+    alignment: { h: 'left', v: 'top' },
   };
   if (type === 'container') node.name = 'Container_' + state.nextContainerNum++;
   return node;

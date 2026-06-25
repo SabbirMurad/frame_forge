@@ -326,12 +326,18 @@ function onContextMenu(e) {
 }
 
 export function initCanvasEvents() {
-  canvasWrap.addEventListener('mousedown', onWrapMouseDown, true);
-  canvasWrap.addEventListener('mousemove', onWrapMouseMove);
-  canvasWrap.addEventListener('mouseup', onWrapMouseUp);
-  canvasWrap.addEventListener('wheel', onWheel, { passive: false });
-  canvasWrap.addEventListener('contextmenu', onContextMenu);
-  canvasWrap.addEventListener('dblclick', onDblClick);
+  // Suppress the browser's native right-click menu everywhere, in every tab.
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Canvas interaction (select/drag/pan/zoom/context-menu) is design-only;
+  // the model board shares #canvas-wrap, so skip these in other modes.
+  const designOnly = (fn) => (e) => { if (document.body.classList.contains('design-mode')) fn(e); };
+  canvasWrap.addEventListener('mousedown', designOnly(onWrapMouseDown), true);
+  canvasWrap.addEventListener('mousemove', designOnly(onWrapMouseMove));
+  canvasWrap.addEventListener('mouseup', designOnly(onWrapMouseUp));
+  canvasWrap.addEventListener('wheel', designOnly(onWheel), { passive: false });
+  canvasWrap.addEventListener('contextmenu', designOnly(onContextMenu));
+  canvasWrap.addEventListener('dblclick', designOnly(onDblClick));
 
   // Context menu actions
   ctxMenu.addEventListener('click', e => {

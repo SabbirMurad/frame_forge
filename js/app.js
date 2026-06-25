@@ -6,10 +6,14 @@ import { render, applyTransform } from './render.js';
 import { initCanvasEvents } from './canvas.js';
 import { initToolEvents, setTool } from './tools.js';
 import { findFrameAt, getWorldPos } from './nodes.js';
+import { initModels, renderModels } from './models.js';
+import { initApi, renderApi } from './api.js';
 
 // Initialize event systems
 initCanvasEvents();
 initToolEvents();
+initModels();
+initApi();
 
 // Add element menu
 document.getElementById('btn-add-layer').addEventListener('click', e => {
@@ -107,17 +111,25 @@ imageInput.addEventListener('change', () => {
   if (btn) btn.addEventListener('click', () => createElement(type));
 });
 
-// Left-panel mode tabs (Design / Model / API / Database)
+// Left-panel mode tabs (Design / Model / API)
 const modeTabs = document.querySelectorAll('.mode-tab');
 const designView = document.getElementById('design-view');
-const modePlaceholder = document.getElementById('mode-placeholder');
+const modelBoard = document.getElementById('model-board');
+const apiBoard = document.getElementById('api-board');
 modeTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     modeTabs.forEach(t => t.classList.toggle('active', t === tab));
-    const isDesign = tab.dataset.mode === 'design';
+    const mode = tab.dataset.mode;
+    const isDesign = mode === 'design';
+    const isModel = mode === 'model';
+    const isApi = mode === 'api';
+    // Design-only chrome (toolbar, zoom, props panel, rulers) is hidden via this class
+    document.body.classList.toggle('design-mode', isDesign);
     designView.style.display = isDesign ? '' : 'none';
-    modePlaceholder.style.display = isDesign ? 'none' : 'flex';
-    if (!isDesign) modePlaceholder.textContent = tab.textContent + ' view — coming soon';
+    modelBoard.style.display = isModel ? 'flex' : 'none';
+    apiBoard.style.display = isApi ? 'flex' : 'none';
+    if (isModel) renderModels();
+    if (isApi) renderApi();
   });
 });
 

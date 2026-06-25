@@ -35,9 +35,22 @@ function applyFlexLayout(el, node) {
   }
 }
 
+const ALIGN_H = { left: 'flex-start', center: 'center', right: 'flex-end' };
+const ALIGN_V = { top: 'flex-start', center: 'center', bottom: 'flex-end' };
+
+// Single-child wrappers (frame/container) align their child via flexbox,
+// driven by the wrapper's `alignment` property.
+function applyWrapperAlignment(el, node) {
+  if (!SINGLE_CHILD_TYPES.includes(node.type)) return;
+  const a = node.alignment || { h: 'left', v: 'top' };
+  el.style.display = node.visible ? 'flex' : 'none';
+  el.style.justifyContent = ALIGN_H[a.h] || 'flex-start';
+  el.style.alignItems = ALIGN_V[a.v] || 'flex-start';
+}
+
 // Place a node based on its parent:
 //  - flex parent (row/column/wrap)   → flex item, auto-laid-out
-//  - single-child wrapper (frame/container) → pinned to the top-left corner
+//  - single-child wrapper (frame/container) → flex item, aligned by the wrapper
 //  - stack or canvas root             → free absolute positioning (x/y)
 function applyPosition(el, node) {
   const parentNode = node.parentId ? getNode(node.parentId) : null;
@@ -47,10 +60,10 @@ function applyPosition(el, node) {
     el.style.top = '';
     el.style.flex = '0 0 auto';
   } else if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type)) {
-    el.style.position = 'absolute';
-    el.style.flex = '';
-    el.style.left = '0px';
-    el.style.top = '0px';
+    el.style.position = 'relative';
+    el.style.flex = '0 0 auto';
+    el.style.left = '';
+    el.style.top = '';
   } else {
     el.style.position = 'absolute';
     el.style.flex = '';
@@ -94,6 +107,7 @@ export function renderNode(node, parent) {
   applySize(el, node);
   el.style.opacity = node.opacity;
   el.style.display = node.visible ? '' : 'none';
+  applyWrapperAlignment(el, node);
 
   if (node.type !== 'text') {
     el.style.background = node.fill;
@@ -144,6 +158,7 @@ export function updateNodeEl(node) {
   if (!el) return;
   applyPosition(el, node);
   applySize(el, node);
+  applyWrapperAlignment(el, node);
   el.style.opacity = node.opacity;
   if (node.type !== 'text') {
     el.style.background = node.fill;

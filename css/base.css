@@ -29,6 +29,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 /* Layout */
 #app { display: grid; grid-template-rows: 1fr; grid-template-columns: var(--panel-w) 1fr var(--panel-w); height: 100vh; }
 
+/* Non-design modes (Model / API) hide all design-only chrome */
+body:not(.design-mode) #app { grid-template-columns: var(--panel-w) 1fr; }
+body:not(.design-mode) #toolbar,
+body:not(.design-mode) .toolbar-right,
+body:not(.design-mode) #props-panel,
+body:not(.design-mode) #canvas,
+body:not(.design-mode) #selection-box,
+body:not(.design-mode) #ruler-corner,
+body:not(.design-mode) #ruler-h-canvas,
+body:not(.design-mode) #ruler-v-canvas { display: none; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -154,25 +154,23 @@ export function renderProps() {
         <input class="prop-input" id="p-color-hex" value="${node.color}" style="font-family:var(--mono);font-size:12px">
       </div>
     </div>` : ''}
-    ${node.type !== 'frame' ? `
+    ${node.type === 'container' ? `
     <div class="prop-section">
-      <div class="prop-section-title">Constraints</div>
+      <div class="prop-section-title">Alignment</div>
       <div class="prop-row">
         <span class="prop-label-wide">Horiz</span>
-        <select class="prop-input" id="p-ch">
-          <option ${node.constraints.h == 'left' ? 'selected' : ''}>left</option>
-          <option ${node.constraints.h == 'right' ? 'selected' : ''}>right</option>
-          <option ${node.constraints.h == 'center' ? 'selected' : ''}>center</option>
-          <option ${node.constraints.h == 'stretch' ? 'selected' : ''}>stretch</option>
+        <select class="prop-input" id="p-ah">
+          <option ${node.alignment.h == 'left' ? 'selected' : ''}>left</option>
+          <option ${node.alignment.h == 'center' ? 'selected' : ''}>center</option>
+          <option ${node.alignment.h == 'right' ? 'selected' : ''}>right</option>
         </select>
       </div>
       <div class="prop-row">
         <span class="prop-label-wide">Vert</span>
-        <select class="prop-input" id="p-cv">
-          <option ${node.constraints.v == 'top' ? 'selected' : ''}>top</option>
-          <option ${node.constraints.v == 'bottom' ? 'selected' : ''}>bottom</option>
-          <option ${node.constraints.v == 'center' ? 'selected' : ''}>center</option>
-          <option ${node.constraints.v == 'stretch' ? 'selected' : ''}>stretch</option>
+        <select class="prop-input" id="p-av">
+          <option ${node.alignment.v == 'top' ? 'selected' : ''}>top</option>
+          <option ${node.alignment.v == 'center' ? 'selected' : ''}>center</option>
+          <option ${node.alignment.v == 'bottom' ? 'selected' : ''}>bottom</option>
         </select>
       </div>
     </div>` : ''}
@@ -232,10 +230,10 @@ export function renderProps() {
     bindColor('p-color', 'p-color-hex', v => { node.color = v; updateNodeEl(node); });
   }
 
-  const ch = document.getElementById('p-ch');
-  const cv = document.getElementById('p-cv');
-  if (ch) ch.addEventListener('change', () => { node.constraints.h = ch.value; });
-  if (cv) cv.addEventListener('change', () => { node.constraints.v = cv.value; });
+  const ah = document.getElementById('p-ah');
+  const av = document.getElementById('p-av');
+  if (ah) ah.addEventListener('change', () => { node.alignment.h = ah.value; updateNodeEl(node); });
+  if (av) av.addEventListener('change', () => { node.alignment.v = av.value; updateNodeEl(node); });
 }
 
 function bindProp(id, fn) {

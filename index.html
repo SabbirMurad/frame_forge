@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/canvas.css">
 </head>
-<body>
+<body class="design-mode">
 <div id="app">
 
   <!-- TOOLBAR -->
@@ -86,7 +86,6 @@
       <button class="mode-tab active" data-mode="design">Design</button>
       <button class="mode-tab" data-mode="model">Model</button>
       <button class="mode-tab" data-mode="api">API</button>
-      <button class="mode-tab" data-mode="database">Database</button>
     </div>
     <div id="design-view">
       <div class="panel-header">
@@ -95,7 +94,6 @@
       </div>
       <div id="layers-list"></div>
     </div>
-    <div id="mode-placeholder" style="display:none"></div>
   </div>
 
   <!-- CANVAS -->
@@ -105,6 +103,8 @@
     <canvas id="ruler-v-canvas"></canvas>
     <div id="canvas"></div>
     <div id="selection-box"></div>
+    <div id="model-board"></div>
+    <div id="api-board"></div>
   </div>
 
   <!-- PROPERTIES PANEL -->
