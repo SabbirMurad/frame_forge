@@ -1,5 +1,7 @@
 import { state } from './state.js';
 import { esc } from './utils.js';
+import { ddTrigger } from './dropdown.js';
+import { saveHistory } from './history.js';
 
 // Model tab: define data models (entities) with typed properties.
 // A property's type is a tree: primitives are leaves; List/Set wrap one type,
@@ -99,11 +101,13 @@ function refreshAllWarns() {
 function addModel() {
   const n = state.nextModelId++;
   state.models.push({ id: 'm' + n, name: 'Model' + n, properties: [] });
+  saveHistory();
   renderModels();
 }
 
 function deleteModel(id) {
   state.models = state.models.filter(m => m.id !== id);
+  saveHistory();
   renderModels();
 }
 
@@ -125,12 +129,14 @@ function duplicateModel(id) {
   clone.name = uniqueName(src.name);
   clone.properties.forEach(p => { p.id = 'p' + state.nextPropId++; });
   state.models.splice(state.models.indexOf(src) + 1, 0, clone);
+  saveHistory();
   renderModels();
 }
 
 function addProperty(model) {
   if (!model) return;
   model.properties.push({ id: 'p' + state.nextPropId++, name: 'field', type: makeType('String'), required: true });
+  saveHistory();
   renderModels();
 }
 
@@ -140,12 +146,14 @@ function toggleRequired(model, propId) {
   const p = model.properties.find(p => p.id === propId);
   if (!p) return;
   p.required = !(p.required !== false);
+  saveHistory();
   renderModels();
 }
 
 function deleteProperty(model, propId) {
   if (!model) return;
   model.properties = model.properties.filter(p => p.id !== propId);
+  saveHistory();
   renderModels();
 }
 
@@ -160,16 +168,16 @@ function setTypeAtPath(prop, path, newType) {
 // Recursively render the cascading dropdowns for a type (and its generic args).
 function renderTypePicker(t, modelId, propId, path) {
   const modelNames = state.models.map(m => m.name);
-  let opts = `<optgroup label="Primitive">${PRIMITIVES.map(o => optTag(o, t.base)).join('')}</optgroup>`;
-  opts += `<optgroup label="Collection">${COLLECTIONS.map(o => optTag(o, t.base)).join('')}</optgroup>`;
-  if (modelNames.length) {
-    opts += `<optgroup label="Models">${modelNames.map(o => optTag(o, t.base)).join('')}</optgroup>`;
-  }
+  const options = [
+    ...PRIMITIVES.map(v => ({ value: v, label: v, group: 'Primitive' })),
+    ...COLLECTIONS.map(v => ({ value: v, label: v, group: 'Collection' })),
+    ...modelNames.map(v => ({ value: v, label: v, group: 'Models' })),
+  ];
   // Keep an unknown base (e.g. a renamed/deleted model reference) selectable.
   const known = [...PRIMITIVES, ...COLLECTIONS, ...modelNames];
-  if (!known.includes(t.base)) opts = optTag(t.base, t.base) + opts;
+  if (!known.includes(t.base)) options.unshift({ value: t.base, label: t.base });
 
-  let html = `<select class="mtype-select" data-model="${modelId}" data-prop="${propId}" data-path="${path.join('.')}">${opts}</select>`;
+  let html = ddTrigger({ value: t.base, options, data: { model: modelId, prop: propId, path: path.join('.') } });
   if (t.base === 'List' || t.base === 'Set') {
     html += `<span class="mtype-b">&lt;</span>${renderTypePicker(t.args[0], modelId, propId, [...path, 0])}<span class="mtype-b">&gt;</span>`;
   } else if (t.base === 'Map') {
@@ -179,9 +187,6 @@ function renderTypePicker(t, modelId, propId, path) {
   }
   return html;
 }
-
-const optTag = (value, selected) =>
-  `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${esc(value)}</option>`;
 
 function renderCard(m) {
   const props = m.properties.map(p => {
@@ -251,17 +256,23 @@ export function initModels() {
     }
   });
 
+  // Type picker selection (custom dropdown fires dd:change).
+  board.addEventListener('dd:change', e => {
+    const t = e.target;
+    const m = getModel(t.dataset.model);
+    const p = m && m.properties.find(p => p.id === t.dataset.prop);
+    if (!p) return;
+    const path = t.dataset.path === '' ? [] : t.dataset.path.split('.').map(Number);
+    setTypeAtPath(p, path, makeType(e.detail.value));
+    saveHistory();
+    renderModels();
+  });
+
+  // Name commit (blur/enter): record history; re-render model names so other
+  // cards' type dropdowns pick up renames.
   board.addEventListener('change', e => {
     const t = e.target;
-    if (t.classList.contains('mtype-select')) {
-      const m = getModel(t.dataset.model);
-      const p = m && m.properties.find(p => p.id === t.dataset.prop);
-      if (!p) return;
-      const path = t.dataset.path === '' ? [] : t.dataset.path.split('.').map(Number);
-      setTypeAtPath(p, path, makeType(t.value));
-      return renderModels();
-    }
-    // Name commit (blur/enter): re-render so other cards' type dropdowns pick up renames.
-    if (t.classList.contains('model-name-input')) renderModels();
+    if (t.classList.contains('model-name-input')) { saveHistory(); renderModels(); }
+    else if (t.classList.contains('prop-name-input')) saveHistory();
   });
 }

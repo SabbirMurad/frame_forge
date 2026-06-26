@@ -3,6 +3,27 @@ import { noSelection, propsFields, esc } from './utils.js';
 import { colorCss } from './colors.js';
 import { updateNodeEl } from './render.js';
 import { renderLayers } from './layers.js';
+import { ddTrigger } from './dropdown.js';
+
+const STROKE_STYLES = ['solid', 'dashed', 'dotted', 'double'];
+const FIT_OPTIONS = [
+  { value: 'cover', label: 'cover' }, { value: 'contain', label: 'contain' },
+  { value: 'fill', label: 'fill' }, { value: 'fitWidth', label: 'fit width' },
+  { value: 'fitHeight', label: 'fit height' },
+];
+
+// All custom dropdowns in the panel route their selection here (one delegated
+// listener; the panel rebuilds its innerHTML but #props-fields itself persists).
+propsFields.addEventListener('dd:change', e => {
+  const node = getNode([...state.selected][0]);
+  if (!node) return;
+  const v = e.detail.value;
+  switch (e.target.dataset.pp) {
+    case 'fit': node.fit = v; updateNodeEl(node); break;
+    case 'fontweight': node.fontWeight = v; updateNodeEl(node); break;
+    case 'sstyle': node.strokeStyle = v; updateNodeEl(node); renderProps(); break;
+  }
+});
 
 export function renderProps() {
   if (state.selected.size === 0) {
@@ -102,18 +123,12 @@ export function renderProps() {
       <div class="prop-section-title">Image</div>
       <div class="prop-row">
         <span class="prop-label-wide">Fit</span>
-        <select class="prop-input" id="p-fit">
-          <option value="cover" ${(node.fit || 'cover') === 'cover' ? 'selected' : ''}>cover</option>
-          <option value="contain" ${node.fit === 'contain' ? 'selected' : ''}>contain</option>
-          <option value="fill" ${node.fit === 'fill' ? 'selected' : ''}>fill</option>
-          <option value="fitWidth" ${node.fit === 'fitWidth' ? 'selected' : ''}>fit width</option>
-          <option value="fitHeight" ${node.fit === 'fitHeight' ? 'selected' : ''}>fit height</option>
-        </select>
+        ${ddTrigger({ value: node.fit || 'cover', options: FIT_OPTIONS, data: { pp: 'fit' }, triggerClass: 'dd-block' })}
       </div>
     </div>` : ''}
-    ${node.type === 'frame' || node.type === 'container' ? `
+    ${node.type === 'frame' || node.type === 'container' || node.type === 'image' ? `
     <div class="prop-section">
-      <div class="prop-section-title">Color</div>
+      <div class="prop-section-title">Fill</div>
       ${state.colors.length === 0 ? `
       <div class="api-hint" style="margin-bottom:8px">No colors created yet.</div>
       <button class="goto-colors-btn" id="p-goto-colors">+ Create a color</button>` : `
@@ -122,7 +137,7 @@ export function renderProps() {
         ${state.colors.map(c => `<button class="color-pick ${node.colorId === c.id ? 'selected' : ''}" data-pickcolor="${c.id}" title="${esc(c.name)}" style="background:${colorCss(c)}"></button>`).join('')}
       </div>`}
     </div>` : ''}
-    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' ? `
+    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' && node.type !== 'image' ? `
     <div class="prop-section">
       <div class="prop-section-title">Fill</div>
       <div class="shape-toggle" style="margin-bottom:8px">
@@ -151,7 +166,7 @@ export function renderProps() {
         <button class="prop-add" id="p-grad-addstop" style="margin:2px 0 0">+ Add stop</button>
       </div>`}
     </div>` : ''}
-    ${node.type === 'container' ? `
+    ${node.type === 'container' || node.type === 'image' ? `
     <div class="prop-section">
       <div class="prop-section-title">Stroke</div>
       <div class="prop-section-title" style="font-size:11px;text-transform:none;letter-spacing:0;color:var(--text2);margin-bottom:6px">Color</div>
@@ -160,13 +175,13 @@ export function renderProps() {
         ${state.colors.filter(c => c.fillType === 'solid').map(c => `<button class="color-pick ${node.strokeColorId === c.id ? 'selected' : ''}" data-strokecolor="${c.id}" title="${esc(c.name)}" style="background:${colorCss(c)}"></button>`).join('')}
       </div>
       <div class="prop-row">
-        <span class="prop-label">Size</span>
-        <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px">
-        <span class="prop-label-wide">Style</span>
+        <span class="prop-label" style="width:auto">Size</span>
+        <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px;flex:0 0 auto">
+        <span class="prop-label-wide" style="width:auto">Style</span>
         ${styleDropdown(node)}
       </div>
     </div>` : ''}
-    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' ? `
+    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' && node.type !== 'image' ? `
     <div class="prop-section">
       <div class="prop-section-title">Stroke</div>
       <div class="color-row">
@@ -200,12 +215,10 @@ export function renderProps() {
         <textarea class="prop-input" id="p-text" rows="3" style="resize:vertical">${esc(node.text)}</textarea>
       </div>
       <div class="prop-row">
-        <span class="prop-label">Sz</span>
+        <span class="prop-label" style="width:auto">Sz</span>
         <input class="prop-input" id="p-fontsize" type="number" value="${node.fontSize}" min="1">
         <span class="prop-label">W</span>
-        <select class="prop-input" id="p-fontweight">
-          ${['300', '400', '500', '600', '700'].map(w => `<option ${node.fontWeight == w ? 'selected' : ''}>${w}</option>`).join('')}
-        </select>
+        ${ddTrigger({ value: String(node.fontWeight), options: ['300', '400', '500', '600', '700'].map(w => ({ value: w, label: w })), data: { pp: 'fontweight' }, triggerClass: 'dd-block' })}
       </div>
       <div class="color-row">
         <input type="color" class="color-swatch" id="p-color" value="${node.color}">
@@ -237,11 +250,6 @@ export function renderProps() {
         renderLayers();
       });
     });
-  }
-
-  if (node.type === 'image') {
-    const ff = document.getElementById('p-fit');
-    if (ff) ff.addEventListener('change', () => { node.fit = ff.value; updateNodeEl(node); });
   }
 
   if (node.type === 'row' || node.type === 'column') {
@@ -294,31 +302,10 @@ export function renderProps() {
     });
     bindPropNum('p-strokew', v => { node.strokeW = Math.max(0, v); updateNodeEl(node); });
     bindPropNum('p-stroke-opacity', v => { node.strokeOpacity = Math.min(1, Math.max(0, v / 100)); updateNodeEl(node); });
-    const styleBtn = document.getElementById('p-stroke-style-btn');
-    const styleMenu = document.getElementById('p-stroke-style-menu');
-    if (styleBtn && styleMenu) {
-      styleBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const wasOpen = styleMenu.classList.contains('open');
-        document.querySelectorAll('.style-menu.open').forEach(m => m.classList.remove('open'));
-        if (!wasOpen) {
-          const r = styleBtn.getBoundingClientRect();
-          styleMenu.style.left = r.left + 'px';
-          styleMenu.style.top = (r.bottom + 4) + 'px';
-          styleMenu.style.minWidth = r.width + 'px';
-          styleMenu.classList.add('open');
-        }
-      });
-      styleMenu.querySelectorAll('[data-sstyle]').forEach(it => {
-        it.addEventListener('click', () => { node.strokeStyle = it.dataset.sstyle; updateNodeEl(node); renderProps(); });
-      });
-    }
   } else {
     const ta = document.getElementById('p-text');
     if (ta) ta.addEventListener('input', () => { node.text = ta.value; updateNodeEl(node); });
     bindPropNum('p-fontsize', v => { node.fontSize = Math.max(1, v); updateNodeEl(node); });
-    const fw = document.getElementById('p-fontweight');
-    if (fw) fw.addEventListener('change', () => { node.fontWeight = fw.value; updateNodeEl(node); });
     bindColor('p-color', 'p-color-hex', v => { node.color = v; updateNodeEl(node); });
   }
 
@@ -326,24 +313,16 @@ export function renderProps() {
   document.querySelectorAll('[data-av]').forEach(b => b.addEventListener('click', () => { node.alignment.v = b.dataset.av; updateNodeEl(node); renderProps(); }));
 }
 
-// Custom border-style dropdown styled like the frame menu (native <select> is ugly)
+// Border-style picker — the shared custom dropdown (selection handled by the
+// delegated dd:change listener above via data-pp="sstyle").
 function styleDropdown(node) {
-  const cur = node.strokeStyle || 'solid';
-  return `
-    <div class="style-select">
-      <button class="prop-input style-trigger" id="p-stroke-style-btn">${cur}<span class="style-caret">&#9662;</span></button>
-      <div class="style-menu" id="p-stroke-style-menu">
-        ${['solid', 'dashed', 'dotted', 'double'].map(s => `<div class="style-menu-item ${cur === s ? 'active' : ''}" data-sstyle="${s}">${s}</div>`).join('')}
-      </div>
-    </div>`;
+  return ddTrigger({
+    value: node.strokeStyle || 'solid',
+    options: STROKE_STYLES.map(s => ({ value: s, label: s })),
+    data: { pp: 'sstyle' },
+    triggerClass: 'dd-block dd-cap',
+  });
 }
-
-// Close any open style dropdown when clicking elsewhere
-document.addEventListener('click', e => {
-  if (!e.target.closest('.style-select')) {
-    document.querySelectorAll('.style-menu.open').forEach(m => m.classList.remove('open'));
-  }
-});
 
 function bindProp(id, fn) {
   const el = document.getElementById(id);

@@ -63,6 +63,7 @@
       </div>
       <div id="mode-tabs">
         <button class="mode-tab" data-mode="color">Color</button>
+        <button class="mode-tab" data-mode="typography">Typography</button>
         <button class="mode-tab active" data-mode="design">Design</button>
         <button class="mode-tab" data-mode="model">Model</button>
         <button class="mode-tab" data-mode="api">API</button>
@@ -75,6 +76,10 @@
       </div>
       <div id="layers-list"></div>
     </div>
+    <!-- COLOR CONTROLLER (Color tab) — sits under the tabs, like the Layers card -->
+    <div id="color-panel"></div>
+    <!-- TYPOGRAPHY CONTROLLER (Typography tab) — also under the tabs -->
+    <div id="typo-panel"></div>
   </div>
 
   <!-- CANVAS -->
@@ -88,6 +93,7 @@
     <div id="model-board"></div>
     <div id="api-board"></div>
     <div id="color-board"></div>
+    <div id="typo-board"></div>
   </div>
 
   <!-- PROPERTIES PANEL -->
@@ -100,9 +106,6 @@
       <div id="props-fields" style="display:none"></div>
     </div>
   </div>
-
-  <!-- COLOR CONTROLLER (Color tab) -->
-  <div id="color-panel"></div>
 </div>
 
 <!-- Context Menu -->

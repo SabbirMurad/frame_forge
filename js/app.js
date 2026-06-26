@@ -9,6 +9,8 @@ import { findFrameAt, getWorldPos } from './nodes.js';
 import { initModels, renderModels } from './models.js';
 import { initApi, renderApi } from './api.js';
 import { initColors, renderColors } from './colors.js';
+import { initTypography, renderTypography } from './typography.js';
+import { initDropdowns } from './dropdown.js';
 
 // Initialize event systems
 initCanvasEvents();
@@ -16,6 +18,8 @@ initToolEvents();
 initModels();
 initApi();
 initColors();
+initTypography();
+initDropdowns();
 
 // Add element menu
 document.getElementById('btn-add-layer').addEventListener('click', e => {
@@ -131,6 +135,8 @@ const modelBoard = document.getElementById('model-board');
 const apiBoard = document.getElementById('api-board');
 const colorBoard = document.getElementById('color-board');
 const colorPanel = document.getElementById('color-panel');
+const typoBoard = document.getElementById('typo-board');
+const typoPanel = document.getElementById('typo-panel');
 modeTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     modeTabs.forEach(t => t.classList.toggle('active', t === tab));
@@ -143,9 +149,12 @@ modeTabs.forEach(tab => {
     apiBoard.style.display = mode === 'api' ? 'flex' : 'none';
     colorBoard.style.display = mode === 'color' ? 'flex' : 'none';
     colorPanel.style.display = mode === 'color' ? 'flex' : 'none';
+    typoBoard.style.display = mode === 'typography' ? 'flex' : 'none';
+    typoPanel.style.display = mode === 'typography' ? 'flex' : 'none';
     if (mode === 'model') renderModels();
     if (mode === 'api') renderApi();
     if (mode === 'color') renderColors();
+    if (mode === 'typography') renderTypography();
     if (isDesign) render(); // refresh canvas in case color variables changed
   });
 });

@@ -95,10 +95,23 @@ export function gradientCss(node) {
 // Paint a node's fill: solid color, linear/radial gradient, or image.
 // Frame/container take their fill from a referenced Color variable when set.
 function applyFill(el, node) {
-  if (node.type === 'image' && node.src) {
-    el.style.backgroundColor = node.fill === 'transparent' ? 'transparent' : node.fill;
-    el.style.backgroundImage = `url("${node.src}")`;
-    el.style.backgroundSize = IMAGE_FIT[node.fit] || 'cover';
+  if (node.type === 'image') {
+    // Fill comes from a referenced Color variable (same as container); the
+    // picture is layered on top of that fill.
+    let src = node;
+    if (node.colorId) { const c = getColorById(node.colorId); if (c) src = c; }
+    const isGrad = src.fillType === 'linear' || src.fillType === 'radial';
+    const pic = node.src ? `url("${node.src}")` : '';
+    const fit = IMAGE_FIT[node.fit] || 'cover';
+    if (isGrad) {
+      el.style.backgroundColor = 'transparent';
+      el.style.backgroundImage = pic ? `${pic}, ${gradientCss(src)}` : gradientCss(src);
+      el.style.backgroundSize = pic ? `${fit}, 100% 100%` : '100% 100%';
+    } else {
+      el.style.backgroundColor = src.fill === 'transparent' ? 'transparent' : src.fill;
+      el.style.backgroundImage = pic;
+      el.style.backgroundSize = pic ? fit : '';
+    }
     el.style.backgroundPosition = 'center';
     el.style.backgroundRepeat = 'no-repeat';
     return;
@@ -130,9 +143,9 @@ function applySize(el, node) {
   }
 }
 
-// Container stroke comes from a referenced solid Color variable; others use their own stroke.
+// Container/image stroke comes from a referenced solid Color variable; others use their own stroke.
 function strokeColor(node) {
-  if (node.type === 'container') {
+  if (node.type === 'container' || node.type === 'image') {
     const cv = node.strokeColorId ? getColorById(node.strokeColorId) : null;
     if (cv && cv.fillType === 'solid') {
       return applyStrokeOpacity(cv.fill, cv.alpha == null ? 1 : cv.alpha);

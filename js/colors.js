@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { esc } from './utils.js';
 import { gradientCss } from './render.js';
+import { saveHistory } from './history.js';
 
 // Color tab: a grid of 100×100 color swatches. Selecting one edits it in the
 // right-hand controller panel. Frame/container reference these by id for fill.
@@ -111,12 +112,14 @@ function addColor() {
   };
   state.colors.push(c);
   state.selectedColorId = c.id;
+  saveHistory();
   renderColors();
 }
 
 function deleteColor(id) {
   state.colors = state.colors.filter(c => c.id !== id);
   if (state.selectedColorId === id) state.selectedColorId = state.colors.length ? state.colors[0].id : null;
+  saveHistory();
   renderColors();
 }
 
@@ -129,11 +132,17 @@ function renderBoard() {
       <button class="model-add-btn" id="color-new">+ New Color</button>
     </div>
     <div class="color-grid">
-      ${state.colors.map(c => `
+      ${state.colors.map(c => {
+        const err = colorError(c);
+        return `
       <div class="color-tile ${state.selectedColorId === c.id ? 'selected' : ''}" data-tile="${c.id}">
         <div class="color-swatch-lg" data-swatch="${c.id}" style="background:${swatchBg(c)}">${c.id === state.selectedColorId && c.fillType !== 'solid' ? renderGradOverlay(c) : ''}</div>
-        <span class="color-tile-name" data-tilename="${c.id}">${esc(c.name)}</span>
-      </div>`).join('')}
+        <div class="color-tile-label">
+          <span class="color-tile-name" data-tilename="${c.id}">${esc(c.name)}</span>
+          <span class="model-warn" data-tilewarn="${c.id}" title="${err ? esc(err) : ''}"${err ? '' : ' style="display:none"'}>&#9888;</span>
+        </div>
+      </div>`;
+      }).join('')}
       ${state.colors.length === 0 ? `<div class="model-empty">No colors yet — click "+ New Color" to create one.</div>` : ''}
     </div>`;
 }
@@ -312,7 +321,11 @@ function startDrag(el, e, onMove) {
     clamp((ev.clientY - rect.top) / rect.height, 0, 1)
   );
   move(e);
-  const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); };
+  const up = () => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    saveHistory(); // one history entry per drag gesture (SV/hue/alpha, stop, rotate)
+  };
   document.addEventListener('pointermove', move);
   document.addEventListener('pointerup', up);
 }
@@ -338,6 +351,16 @@ function refreshColorWarn(c) {
   if (warn) { warn.title = err || ''; warn.style.display = err ? '' : 'none'; }
   const input = document.querySelector('#color-panel [data-name]');
   if (input) input.classList.toggle('invalid', !!err);
+}
+
+// Sync every board tile's warning icon (renaming one color can change another's
+// duplicate status, so refresh them all).
+function refreshTileWarns() {
+  state.colors.forEach(c => {
+    const err = colorError(c);
+    const w = document.querySelector(`[data-tilewarn="${c.id}"]`);
+    if (w) { w.title = err || ''; w.style.display = err ? '' : 'none'; }
+  });
 }
 
 export function initColors() {
@@ -394,11 +417,14 @@ export function initColors() {
       const c = getColor(state.selectedColorId);
       if (!c) return;
       if (t.dataset.mode != null) { pickerMode = pickerMode === 'hex' ? 'rgb' : 'hex'; renderPanel(); return; }
-      if (t.dataset.filltype) { c.fillType = t.dataset.filltype; pickerStopIndex = 0; renderPanel(); refreshGrad(c); return; }
+      if (t.dataset.filltype) { c.fillType = t.dataset.filltype; pickerStopIndex = 0; renderPanel(); refreshGrad(c); saveHistory(); return; }
       if (t.dataset.stopsel != null) { pickerStopIndex = +t.dataset.stopsel; renderPanel(); refreshGrad(c); return; }
-      if (t.dataset.stopdel != null) { if (c.gradient.stops.length > 2) { c.gradient.stops.splice(+t.dataset.stopdel, 1); pickerStopIndex = clamp(pickerStopIndex, 0, c.gradient.stops.length - 1); renderPanel(); refreshGrad(c); } return; }
-      if (t.dataset.addstop != null) { const s = c.gradient.stops; s.push({ color: s[s.length - 1]?.color || '#ffffff', alpha: 1, pos: 100 }); pickerStopIndex = s.length - 1; renderPanel(); refreshGrad(c); return; }
+      if (t.dataset.stopdel != null) { if (c.gradient.stops.length > 2) { c.gradient.stops.splice(+t.dataset.stopdel, 1); pickerStopIndex = clamp(pickerStopIndex, 0, c.gradient.stops.length - 1); renderPanel(); refreshGrad(c); saveHistory(); } return; }
+      if (t.dataset.addstop != null) { const s = c.gradient.stops; s.push({ color: s[s.length - 1]?.color || '#ffffff', alpha: 1, pos: 100 }); pickerStopIndex = s.length - 1; renderPanel(); refreshGrad(c); saveHistory(); return; }
     });
+
+    // Commit field edits (name, hex/rgb, alpha, angle, stop position) to history on blur.
+    panel.addEventListener('change', () => saveHistory());
 
     // Drag on the SV square / hue / alpha tracks
     panel.addEventListener('pointerdown', e => {
@@ -416,7 +442,7 @@ export function initColors() {
       const t = e.target;
       const c = getColor(state.selectedColorId);
       if (!c) return;
-      if (t.dataset.name != null) { c.name = t.value; refreshTileName(c); refreshColorWarn(c); return; }
+      if (t.dataset.name != null) { c.name = t.value; refreshTileName(c); refreshColorWarn(c); refreshTileWarns(); return; }
       if (t.dataset.hex != null) { if (isHex(t.value)) { getTarget(c).setHex(t.value); const { r, g, b } = hexToRgb(t.value); pickerHsv = rgbToHsv(r, g, b); refreshGrad(c); updatePickerDom(c); } return; }
       if (t.dataset.r != null || t.dataset.g != null || t.dataset.b != null) {
         const rd = panel.querySelector('[data-r]'), gd = panel.querySelector('[data-g]'), bd = panel.querySelector('[data-b]');

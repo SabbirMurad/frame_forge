@@ -13,6 +13,10 @@ export const state = {
   colors: [],
   nextColorId: 1,
   selectedColorId: null,
+  // Typography tab: reusable text styles (font, size, weight, line height, color)
+  typography: [],
+  nextTypoId: 1,
+  selectedTypoId: null,
   history: [],
   historyIndex: -1,
   // Model tab: data models (entities) with typed properties
@@ -24,6 +28,7 @@ export const state = {
   apiBaseUrl: '',
   nextApiId: 1,
   nextHeaderId: 1,
+  nextParamId: 1,
 };
 
 export function getNode(id) {
