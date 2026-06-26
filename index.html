@@ -52,40 +52,21 @@
       </button>
     </div>
 
-    <div class="tool-group">
-      <button class="tool-btn" id="btn-group" data-tooltip="Group (Ctrl+G)">
-        <img src="icons/group.svg" alt="Group" width="14" height="14">
-      </button>
-      <button class="tool-btn" id="btn-ungroup" data-tooltip="Ungroup (Ctrl+Shift+G)">
-        <img src="icons/ungroup.svg" alt="Ungroup" width="14" height="14">
-      </button>
-    </div>
-
-    <div class="tool-group">
-      <button class="tool-btn" id="btn-front" data-tooltip="Bring to Front">
-        <img src="icons/bring-front.svg" alt="Bring to Front" width="14" height="14">
-      </button>
-      <button class="tool-btn" id="btn-back" data-tooltip="Send to Back">
-        <img src="icons/send-back.svg" alt="Send to Back" width="14" height="14">
-      </button>
-    </div>
-
   </div>
 
-  <!-- ZOOM CONTROLS -->
-  <div class="toolbar-right">
-    <button class="tool-btn" id="btn-zoom-out" data-tooltip="Zoom Out (-)">&#8722;</button>
-    <span class="zoom-display" id="zoom-label">100%</span>
-    <button class="tool-btn" id="btn-zoom-in" data-tooltip="Zoom In (+)">+</button>
-    <button class="tool-btn" id="btn-fit" data-tooltip="Fit (0)" style="font-size:12px;font-family:var(--mono)">fit</button>
-  </div>
-
-  <!-- LAYERS PANEL -->
+  <!-- LEFT SIDEBAR -->
   <div id="layers-panel">
-    <div id="mode-tabs">
-      <button class="mode-tab active" data-mode="design">Design</button>
-      <button class="mode-tab" data-mode="model">Model</button>
-      <button class="mode-tab" data-mode="api">API</button>
+    <div id="nav-card">
+      <div id="project-header">
+        <input id="project-name" type="text" value="Untitled" spellcheck="false" placeholder="Project name">
+        <button id="sidebar-toggle" class="icon-btn" title="Collapse sidebar">&#171;</button>
+      </div>
+      <div id="mode-tabs">
+        <button class="mode-tab" data-mode="color">Color</button>
+        <button class="mode-tab active" data-mode="design">Design</button>
+        <button class="mode-tab" data-mode="model">Model</button>
+        <button class="mode-tab" data-mode="api">API</button>
+      </div>
     </div>
     <div id="design-view">
       <div class="panel-header">
@@ -103,8 +84,10 @@
     <canvas id="ruler-v-canvas"></canvas>
     <div id="canvas"></div>
     <div id="selection-box"></div>
+    <div id="snap-guides"></div>
     <div id="model-board"></div>
     <div id="api-board"></div>
+    <div id="color-board"></div>
   </div>
 
   <!-- PROPERTIES PANEL -->
@@ -117,6 +100,9 @@
       <div id="props-fields" style="display:none"></div>
     </div>
   </div>
+
+  <!-- COLOR CONTROLLER (Color tab) -->
+  <div id="color-panel"></div>
 </div>
 
 <!-- Context Menu -->
@@ -157,6 +143,8 @@
 </div>
 
 <input type="file" id="image-input" accept="image/*" style="display:none">
+
+<button id="sidebar-open" title="Open sidebar">&#187;</button>
 
 <div id="toast"></div>
 

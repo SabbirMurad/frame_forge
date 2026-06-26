@@ -3,18 +3,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #141414;
-  --surface: #1c1c1c;
-  --surface2: #242424;
-  --surface3: #2e2e2e;
-  --border: #333;
-  --border2: #3f3f3f;
-  --text: #e8e8e8;
-  --text2: #999;
-  --text3: #666;
+  --bg: #131417;
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.06);
+  --surface3: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #edeef2;
+  --text2: #9a9da6;
+  --text3: #686b75;
   --accent: #5b8af5;
   --accent2: #3d6de0;
-  --accent-glow: rgba(91,138,245,0.15);
+  --accent-glow: rgba(91,138,245,0.18);
   --red: #f55b5b;
   --green: #5bf5a0;
   --yellow: #f5d05b;
@@ -22,15 +22,29 @@
   --toolbar-h: 44px;
   --mono: 'IBM Plex Mono', monospace;
   --sans: 'IBM Plex Sans', sans-serif;
+
+  /* Glass / depth system — neutral charcoal */
+  --glass-blur: 18px;
+  --glass-bg: rgba(38,39,43,0.58);
+  --glass-bg-strong: rgba(31,32,36,0.74);
+  --glass-border: rgba(255,255,255,0.09);
+  --glass-highlight: inset 0 1px 0 rgba(255,255,255,0.07);
+  --glass-shadow: 0 10px 34px rgba(0,0,0,0.45);
 }
 
-html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden; color: var(--text);
+  font-family: var(--sans); font-size: 14px;
+  background:
+    radial-gradient(820px 460px at 50% -4%, rgba(170,178,194,0.13), transparent 60%),
+    radial-gradient(900px 640px at 50% 44%, rgba(150,160,176,0.05), transparent 64%),
+    linear-gradient(180deg, #202226 0%, #191a1e 46%, #111215 100%);
+}
 
-/* Layout */
-#app { display: grid; grid-template-rows: 1fr; grid-template-columns: var(--panel-w) 1fr var(--panel-w); height: 100vh; }
+/* Layout — canvas is full-bleed; the panels and toolbar float over it */
+#app { position: relative; height: 100vh; overflow: hidden; }
 
 /* Non-design modes (Model / API) hide all design-only chrome */
-body:not(.design-mode) #app { grid-template-columns: var(--panel-w) 1fr; }
 body:not(.design-mode) #toolbar,
 body:not(.design-mode) .toolbar-right,
 body:not(.design-mode) #props-panel,

@@ -1,11 +1,11 @@
 import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
-import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, SINGLE_CHILD_TYPES } from './nodes.js';
+import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render, updateNodeEl, applyTransform } from './render.js';
 import { renderProps } from './props.js';
 import { setTool } from './tools.js';
-import { duplicateSelected, groupSelected, deleteSelected, bringToFront, sendToBack } from './operations.js';
+import { duplicateSelected, groupSelected, deleteSelected, bringToFront, sendToBack, cloneNodeInPlace } from './operations.js';
 
 let dragging = null;
 let resizing = null;
@@ -13,6 +13,168 @@ let panning = false;
 let panStart = null;
 let drawStart = null;
 let selStart = null;
+
+// ───────── Snapping / smart guides ─────────
+const SNAP_PX = 6; // snap distance in screen pixels
+
+// Only free-positioned nodes (canvas root or stack children) move by x/y, so only they snap.
+function isFreeNode(n) {
+  if (!n.parentId) return true;
+  const p = getNode(n.parentId);
+  return !!p && p.type === 'stack';
+}
+
+// Capture other nodes' world rects once at drag start (they don't move while dragging one).
+// Rects come from the DOM so they're accurate regardless of flex/absolute layout.
+function captureSnapTargets(dragged) {
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  const targets = [];
+  state.nodes.forEach(n => {
+    if (n.id === dragged.id || !n.visible || isDescendant(n.id, dragged.id)) return;
+    const el = document.getElementById('node-' + n.id);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const L = (r.left - wrapRect.left - state.panX) / state.zoom;
+    const T = (r.top - wrapRect.top - state.panY) / state.zoom;
+    const R = (r.right - wrapRect.left - state.panX) / state.zoom;
+    const B = (r.bottom - wrapRect.top - state.panY) / state.zoom;
+    targets.push({ L, T, R, B, CX: (L + R) / 2, CY: (T + B) / 2 });
+  });
+  return targets;
+}
+
+// Nudge node to the nearest matching edge/center (left/center/right & top/center/bottom)
+// within tolerance, and return the guide line(s) to draw.
+function snapNode(node, targets) {
+  const tol = SNAP_PX / state.zoom;
+  const wp = getWorldPos(node);
+  const dX = [wp.x, wp.x + node.w / 2, wp.x + node.w];
+  const dY = [wp.y, wp.y + node.h / 2, wp.y + node.h];
+  let bestX = null, bestY = null;
+  for (const r of targets) {
+    for (const dv of dX) for (const tv of [r.L, r.CX, r.R]) {
+      const delta = tv - dv;
+      if (Math.abs(delta) <= tol && (!bestX || Math.abs(delta) < Math.abs(bestX.delta))) bestX = { delta, line: tv, r };
+    }
+    for (const dv of dY) for (const tv of [r.T, r.CY, r.B]) {
+      const delta = tv - dv;
+      if (Math.abs(delta) <= tol && (!bestY || Math.abs(delta) < Math.abs(bestY.delta))) bestY = { delta, line: tv, r };
+    }
+  }
+  if (bestX) node.x += bestX.delta;
+  if (bestY) node.y += bestY.delta;
+
+  const guides = [];
+  const w2 = getWorldPos(node);
+  if (bestX) {
+    const a = Math.min(w2.y, bestX.r.T), b = Math.max(w2.y + node.h, bestX.r.B);
+    guides.push({ type: 'v', x: bestX.line, a, b, dist: rangeGap(w2.y, w2.y + node.h, bestX.r.T, bestX.r.B) });
+  }
+  if (bestY) {
+    const a = Math.min(w2.x, bestY.r.L), b = Math.max(w2.x + node.w, bestY.r.R);
+    guides.push({ type: 'h', y: bestY.line, a, b, dist: rangeGap(w2.x, w2.x + node.w, bestY.r.L, bestY.r.R) });
+  }
+  return guides;
+}
+
+// Gap between two 1-D ranges; negative (-1) when they overlap (no gap to show).
+function rangeGap(aMin, aMax, bMin, bMax) {
+  if (aMax <= bMin) return bMin - aMax;
+  if (bMax <= aMin) return aMin - bMax;
+  return -1;
+}
+
+function drawGuides(guides) {
+  const layer = document.getElementById('snap-guides');
+  if (!layer) return;
+  layer.innerHTML = '';
+  for (const g of guides) {
+    const d = document.createElement('div');
+    const mid = (g.a + g.b) / 2;
+    if (g.type === 'v') {
+      d.className = 'snap-guide snap-v';
+      d.style.left = (state.panX + g.x * state.zoom) + 'px';
+      d.style.top = (state.panY + g.a * state.zoom) + 'px';
+      d.style.height = ((g.b - g.a) * state.zoom) + 'px';
+    } else {
+      d.className = 'snap-guide snap-h';
+      d.style.top = (state.panY + g.y * state.zoom) + 'px';
+      d.style.left = (state.panX + g.a * state.zoom) + 'px';
+      d.style.width = ((g.b - g.a) * state.zoom) + 'px';
+    }
+    layer.appendChild(d);
+
+    // Distance badge at the line center (only when the items have a real gap)
+    if (g.dist >= 0) {
+      const label = document.createElement('div');
+      label.className = 'snap-dist';
+      label.textContent = Math.round(g.dist);
+      if (g.type === 'v') {
+        label.style.left = (state.panX + g.x * state.zoom) + 'px';
+        label.style.top = (state.panY + mid * state.zoom) + 'px';
+      } else {
+        label.style.left = (state.panX + mid * state.zoom) + 'px';
+        label.style.top = (state.panY + g.y * state.zoom) + 'px';
+      }
+      layer.appendChild(label);
+    }
+  }
+}
+
+function clearGuides() {
+  const layer = document.getElementById('snap-guides');
+  if (layer) layer.innerHTML = '';
+}
+
+// World-space rect of a node, measured from the DOM (accurate for any layout).
+function nodeWorldRect(n) {
+  const el = document.getElementById('node-' + n.id);
+  if (el) {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return {
+      L: (r.left - wrapRect.left - state.panX) / state.zoom,
+      T: (r.top - wrapRect.top - state.panY) / state.zoom,
+      R: (r.right - wrapRect.left - state.panX) / state.zoom,
+      B: (r.bottom - wrapRect.top - state.panY) / state.zoom,
+    };
+  }
+  const wp = getWorldPos(n);
+  return { L: wp.x, T: wp.y, R: wp.x + n.w, B: wp.y + n.h };
+}
+
+// Figma-style measurement between two rects: edge insets when one contains the
+// other, otherwise the gap on each axis where they're separated.
+function measureBetween(a, b) {
+  const segs = [];
+  const aInB = a.L >= b.L && a.R <= b.R && a.T >= b.T && a.B <= b.B;
+  const bInA = b.L >= a.L && b.R <= a.R && b.T >= a.T && b.B <= a.B;
+
+  if (aInB || bInA) {
+    const inner = aInB ? a : b;
+    const outer = aInB ? b : a;
+    const cy = (inner.T + inner.B) / 2;
+    const cx = (inner.L + inner.R) / 2;
+    segs.push({ type: 'h', y: cy, a: outer.L, b: inner.L, dist: inner.L - outer.L });
+    segs.push({ type: 'h', y: cy, a: inner.R, b: outer.R, dist: outer.R - inner.R });
+    segs.push({ type: 'v', x: cx, a: outer.T, b: inner.T, dist: inner.T - outer.T });
+    segs.push({ type: 'v', x: cx, a: inner.B, b: outer.B, dist: outer.B - inner.B });
+    return segs;
+  }
+
+  const vOverlap = Math.min(a.B, b.B) - Math.max(a.T, b.T);
+  const hOverlap = Math.min(a.R, b.R) - Math.max(a.L, b.L);
+
+  const measureY = vOverlap > 0 ? (Math.max(a.T, b.T) + Math.min(a.B, b.B)) / 2 : (a.T + a.B) / 2;
+  if (a.R <= b.L) segs.push({ type: 'h', y: measureY, a: a.R, b: b.L, dist: b.L - a.R });
+  else if (b.R <= a.L) segs.push({ type: 'h', y: measureY, a: b.R, b: a.L, dist: a.L - b.R });
+
+  const measureX = hOverlap > 0 ? (Math.max(a.L, b.L) + Math.min(a.R, b.R)) / 2 : (a.L + a.R) / 2;
+  if (a.B <= b.T) segs.push({ type: 'v', x: measureX, a: a.B, b: b.T, dist: b.T - a.B });
+  else if (b.B <= a.T) segs.push({ type: 'v', x: measureX, a: b.B, b: a.T, dist: a.T - b.B });
+
+  return segs;
+}
 
 export function attachNodeEvents(el, node) {
   el.addEventListener('mousedown', (e) => {
@@ -34,10 +196,16 @@ export function attachNodeEvents(el, node) {
     e.stopPropagation();
 
     if (state.tool === 'select') {
-      if (!e.shiftKey && !e.metaKey && !e.ctrlKey && !state.selected.has(node.id)) {
+      if (e.altKey) {
+        // Alt+drag → duplicate; the copy is made on the first move (so Alt+click does nothing)
         state.selected.clear();
+        state.selected.add(node.id);
+      } else if (!e.shiftKey && !e.metaKey && !e.ctrlKey && !state.selected.has(node.id)) {
+        state.selected.clear();
+        state.selected.add(node.id);
+      } else {
+        state.selected.add(node.id);
       }
-      state.selected.add(node.id);
       render();
 
       dragging = {
@@ -46,11 +214,14 @@ export function attachNodeEvents(el, node) {
         startY: e.clientY,
         origX: node.x,
         origY: node.y,
-        multi: state.selected.size > 1 ? [...state.selected].map(id => {
+        altClone: e.altKey ? node : null,
+        multi: (!e.altKey && state.selected.size > 1) ? [...state.selected].map(id => {
           const n = getNode(id);
           return n ? { node: n, ox: n.x, oy: n.y } : null;
         }).filter(Boolean) : null,
       };
+      // Single free-node drags snap to other elements' edges/centers (deferred for Alt-clone)
+      if (!dragging.multi && !dragging.altClone && isFreeNode(node)) dragging.snapTargets = captureSnapTargets(node);
       saveHistory();
     }
   });
@@ -113,6 +284,19 @@ function onWrapMouseMove(e) {
     if (h.includes('w')) { x = resizing.origX + dx; w = Math.max(10, resizing.origW - dx); }
     if (h.includes('n')) { y = resizing.origY + dy; h2 = Math.max(10, resizing.origH - dy); }
 
+    // Hold Shift on a corner handle → keep the original aspect ratio
+    const corner = (h.includes('e') || h.includes('w')) && (h.includes('n') || h.includes('s'));
+    if (e.shiftKey && corner) {
+      const aspect = resizing.origW / resizing.origH;
+      if (Math.abs(dx) * resizing.origH >= Math.abs(dy) * resizing.origW) {
+        h2 = Math.max(10, w / aspect); w = h2 * aspect;     // width drives
+      } else {
+        w = Math.max(10, h2 * aspect); h2 = w / aspect;     // height drives
+      }
+      if (h.includes('w')) x = resizing.origX + resizing.origW - w;
+      if (h.includes('n')) y = resizing.origY + resizing.origH - h2;
+    }
+
     n.x = x; n.y = y; n.w = w; n.h = h2;
     updateNodeEl(n);
     renderProps();
@@ -128,8 +312,22 @@ function onWrapMouseMove(e) {
         document.getElementById('node-' + n.id)?.classList.add('drag-source');
       });
     } else {
+      // First move of an Alt-drag: clone the node and drag the copy from here on
+      if (dragging.altClone) {
+        const copy = cloneNodeInPlace(dragging.altClone);
+        dragging.altClone = null;
+        if (copy) {
+          dragging.node = copy;
+          dragging.origX = copy.x; dragging.origY = copy.y;
+          state.selected.clear(); state.selected.add(copy.id);
+          render();
+          if (isFreeNode(copy)) dragging.snapTargets = captureSnapTargets(copy);
+        }
+        clearGuides();
+      }
       dragging.node.x = dragging.origX + dx;
       dragging.node.y = dragging.origY + dy;
+      if (dragging.snapTargets) drawGuides(snapNode(dragging.node, dragging.snapTargets));
       updateNodeEl(dragging.node);
       document.getElementById('node-' + dragging.node.id)?.classList.add('drag-source');
       const wp = getWorldPos(dragging.node);
@@ -162,10 +360,23 @@ function onWrapMouseMove(e) {
     if (state.tool !== 'frame') highlightDropTarget(world.x, world.y);
     return;
   }
+
+  // Idle: hold Alt and hover another element to measure the distance to the selected one
+  if (e.altKey && state.selected.size === 1) {
+    const selNode = getNode([...state.selected][0]);
+    const overEl = e.target.closest('.node');
+    const overId = overEl && overEl.dataset.id;
+    if (selNode && overId && overId !== selNode.id) {
+      const overNode = getNode(overId);
+      if (overNode) { drawGuides(measureBetween(nodeWorldRect(selNode), nodeWorldRect(overNode))); return; }
+    }
+  }
+  clearGuides();
 }
 
 function onWrapMouseUp(e) {
   clearDropTargets();
+  clearGuides();
 
   if (panning) {
     panning = false;
@@ -229,8 +440,11 @@ function onWrapMouseUp(e) {
 
     const worldX = Math.min(drawStart.x, world.x);
     const worldY = Math.min(drawStart.y, world.y);
-    const w = Math.max(10, Math.abs(world.x - drawStart.x));
-    const h = Math.max(10, Math.abs(world.y - drawStart.y));
+    let w = Math.max(10, Math.abs(world.x - drawStart.x));
+    let h = Math.max(10, Math.abs(world.y - drawStart.y));
+    // A click (or tiny drag) with the text tool → use a default-sized box so the
+    // text doesn't wrap to one character per line.
+    if (state.tool === 'text' && w < 24) { w = 120; h = 40; }
 
     const midX = (drawStart.x + world.x) / 2;
     const midY = (drawStart.y + world.y) / 2;
@@ -338,6 +552,9 @@ export function initCanvasEvents() {
   canvasWrap.addEventListener('wheel', designOnly(onWheel), { passive: false });
   canvasWrap.addEventListener('contextmenu', designOnly(onContextMenu));
   canvasWrap.addEventListener('dblclick', designOnly(onDblClick));
+
+  // Releasing Alt clears any Alt-hover measurement guides
+  document.addEventListener('keyup', e => { if (e.key === 'Alt' && !dragging) clearGuides(); });
 
   // Context menu actions
   ctxMenu.addEventListener('click', e => {

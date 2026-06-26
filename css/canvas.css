@@ -1,5 +1,5 @@
 /* Canvas Area */
-#canvas-wrap { position: relative; overflow: hidden; background: var(--bg); cursor: default; }
+#canvas-wrap { position: absolute; inset: 0; overflow: hidden; background: rgba(17,18,21,0.30); cursor: default; }
 #canvas { position: absolute; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
 
 /* Nodes */
@@ -35,12 +35,23 @@
   pointer-events: none; display: none; z-index: 50;
 }
 
+/* Snap / alignment guides */
+#snap-guides { position: absolute; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.snap-guide { position: absolute; background: #a259ff; }
+.snap-v { width: 1px; }
+.snap-h { height: 1px; }
+.snap-dist {
+  position: absolute; transform: translate(-50%, -50%);
+  background: #a259ff; color: #fff; font-family: var(--mono); font-size: 10px;
+  padding: 1px 5px; border-radius: 4px; white-space: nowrap; line-height: 1.5;
+}
+
 /* Canvas z-stacking */
 #canvas { z-index: 1; }
 
 /* Canvas Rulers */
 #ruler-h-canvas, #ruler-v-canvas { position: absolute; z-index: 20; pointer-events: none; }
-#ruler-corner { position: absolute; top: 0; left: 0; width: 20px; height: 20px; background: var(--surface); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); z-index: 21; }
+#ruler-corner { position: absolute; top: 0; left: 0; width: 26px; height: 26px; background: var(--glass-bg); border-right: 1px solid var(--border2); border-bottom: 1px solid var(--border2); z-index: 21; }
 
 /* Inline Text Edit */
 .text-editor {

@@ -1,4 +1,4 @@
-import { state, getNode } from './state.js';
+import { state, getNode, getColorById } from './state.js';
 import { SINGLE_CHILD_TYPES, MULTI_CHILD_TYPES } from './nodes.js';
 import { canvas, zoomLabel, canvasWrap } from './utils.js';
 import { drawRulers } from './rulers.js';
@@ -8,7 +8,7 @@ import { attachNodeEvents } from './canvas.js';
 
 export function applyTransform() {
   canvas.style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
-  zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
+  if (zoomLabel) zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
   drawRulers();
 }
 
@@ -74,13 +74,46 @@ function applyPosition(el, node) {
 
 // Paint an image node's picture as its background (call after setting the fill)
 const IMAGE_FIT = { cover: 'cover', contain: 'contain', fill: '100% 100%', fitWidth: '100% auto', fitHeight: 'auto 100%' };
-function applyImage(el, node) {
+
+function stopColorCss(s) {
+  const a = s.alpha == null ? 1 : s.alpha;
+  if (a >= 1) return s.color;
+  let h = (s.color || '#000000').replace('#', '');
+  if (h.length === 3) h = h.split('').map(x => x + x).join('');
+  const n = parseInt(h.slice(0, 6) || '0', 16) || 0;
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+function gradientStops(stops) {
+  return [...stops].sort((a, b) => a.pos - b.pos).map(s => `${stopColorCss(s)} ${s.pos}%`).join(', ');
+}
+export function gradientCss(node) {
+  const g = node.gradient || { angle: 90, stops: [] };
+  if (node.fillType === 'radial') return `radial-gradient(circle at center, ${gradientStops(g.stops)})`;
+  return `linear-gradient(${g.angle}deg, ${gradientStops(g.stops)})`;
+}
+
+// Paint a node's fill: solid color, linear/radial gradient, or image.
+// Frame/container take their fill from a referenced Color variable when set.
+function applyFill(el, node) {
   if (node.type === 'image' && node.src) {
+    el.style.backgroundColor = node.fill === 'transparent' ? 'transparent' : node.fill;
     el.style.backgroundImage = `url("${node.src}")`;
     el.style.backgroundSize = IMAGE_FIT[node.fit] || 'cover';
     el.style.backgroundPosition = 'center';
     el.style.backgroundRepeat = 'no-repeat';
+    return;
+  }
+  let src = node;
+  if ((node.type === 'frame' || node.type === 'container') && node.colorId) {
+    const c = getColorById(node.colorId);
+    if (c) src = c;
+  }
+  if (src.fillType === 'linear' || src.fillType === 'radial') {
+    el.style.backgroundColor = 'transparent';
+    el.style.backgroundImage = gradientCss(src);
+    el.style.backgroundSize = ''; el.style.backgroundRepeat = '';
   } else {
+    el.style.backgroundColor = src.fill;
     el.style.backgroundImage = '';
   }
 }
@@ -97,6 +130,22 @@ function applySize(el, node) {
   }
 }
 
+// Container stroke comes from a referenced solid Color variable; others use their own stroke.
+function strokeColor(node) {
+  if (node.type === 'container') {
+    const cv = node.strokeColorId ? getColorById(node.strokeColorId) : null;
+    if (cv && cv.fillType === 'solid') {
+      return applyStrokeOpacity(cv.fill, cv.alpha == null ? 1 : cv.alpha);
+    }
+    return 'transparent';
+  }
+  return applyStrokeOpacity(node.stroke, node.strokeOpacity);
+}
+function applyStroke(el, node) {
+  if (node.strokeW > 0) el.style.border = `${node.strokeW}px ${node.strokeStyle || 'solid'} ${strokeColor(node)}`;
+  else el.style.border = 'none';
+}
+
 export function renderNode(node, parent) {
   const el = document.createElement('div');
   el.className = 'node ' + (node.type === 'text' ? 'text-node' : node.type);
@@ -110,15 +159,9 @@ export function renderNode(node, parent) {
   applyWrapperAlignment(el, node);
 
   if (node.type !== 'text') {
-    el.style.background = node.fill;
-    if (node.strokeW > 0) {
-      el.style.border = `${node.strokeW}px ${node.strokeStyle || 'solid'} ${node.stroke}`;
-      el.style.borderColor = applyStrokeOpacity(node.stroke, node.strokeOpacity);
-    } else {
-      el.style.border = 'none';
-    }
+    applyFill(el, node);
+    applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
-    applyImage(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     el.style.fontSize = node.fontSize + 'px';
@@ -161,15 +204,9 @@ export function updateNodeEl(node) {
   applyWrapperAlignment(el, node);
   el.style.opacity = node.opacity;
   if (node.type !== 'text') {
-    el.style.background = node.fill;
-    if (node.strokeW > 0) {
-      el.style.border = `${node.strokeW}px ${node.strokeStyle || 'solid'} ${node.stroke}`;
-      el.style.borderColor = applyStrokeOpacity(node.stroke, node.strokeOpacity);
-    } else {
-      el.style.border = 'none';
-    }
+    applyFill(el, node);
+    applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
-    applyImage(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     el.style.fontSize = node.fontSize + 'px';

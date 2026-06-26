@@ -2,6 +2,84 @@ import { state, getNode, makeNode } from './state.js';
 import { showToast } from './utils.js';
 import { saveHistory } from './history.js';
 import { render } from './render.js';
+import { canAcceptChild, getWorldPos } from './nodes.js';
+
+// ───────── Copy / paste ─────────
+let clipboard = null;   // array of serialized node subtrees
+let pasteCount = 0;     // grows per paste so repeats don't stack exactly
+
+// Serialize a node and its whole subtree into a detached tree (children embedded).
+function serializeSubtree(id) {
+  const n = getNode(id);
+  if (!n) return null;
+  const t = JSON.parse(JSON.stringify(n));
+  t._children = (n.children || []).map(serializeSubtree).filter(Boolean);
+  return t;
+}
+
+export function copySelected() {
+  if (state.selected.size === 0) return;
+  clipboard = [...state.selected].map(id => {
+    const t = serializeSubtree(id);
+    if (t) { const wp = getWorldPos(getNode(id)); t._world = { x: wp.x, y: wp.y }; }
+    return t;
+  }).filter(Boolean);
+  pasteCount = 0;
+  showToast(clipboard.length + (clipboard.length === 1 ? ' element copied' : ' elements copied'));
+}
+
+// Recreate a serialized subtree as real nodes with fresh ids under `parentId`.
+function instantiate(tree, parentId, x, y) {
+  const childTrees = tree._children || [];
+  const node = JSON.parse(JSON.stringify(tree));
+  delete node._children;
+  delete node._world;
+  node.id = 'n' + (state.nextId++);
+  node.parentId = parentId || null;
+  node.x = x;
+  node.y = y;
+  node.children = [];
+  state.nodes.push(node);
+  if (parentId) {
+    const p = getNode(parentId);
+    if (p && !p.children.includes(node.id)) p.children.push(node.id);
+  }
+  // Children keep their own relative positions
+  childTrees.forEach(ct => instantiate(ct, node.id, ct.x, ct.y));
+  return node.id;
+}
+
+// Deep-clone a node (and its subtree) at the same position/parent; returns the
+// new root node. Used for Alt-drag duplication.
+export function cloneNodeInPlace(node) {
+  if (!node) return null;
+  const tree = serializeSubtree(node.id);
+  const id = instantiate(tree, node.parentId, node.x, node.y);
+  return getNode(id);
+}
+
+export function pasteClipboard() {
+  if (!clipboard || !clipboard.length) return;
+  pasteCount++;
+  const off = 20 * pasteCount;
+  const newSel = new Set();
+  clipboard.forEach(tree => {
+    let parentId = tree.parentId || null;
+    const parent = parentId ? getNode(parentId) : null;
+    let x, y;
+    if (parent && canAcceptChild(parent)) {
+      x = tree.x + off; y = tree.y + off;           // same parent, local offset
+    } else {
+      parentId = null;                              // can't nest → drop on the canvas
+      const w = tree._world || { x: tree.x, y: tree.y };
+      x = w.x + off; y = w.y + off;
+    }
+    newSel.add(instantiate(tree, parentId, x, y));
+  });
+  state.selected = newSel;
+  saveHistory();
+  render();
+}
 
 export function deleteSelected() {
   const toDelete = new Set();

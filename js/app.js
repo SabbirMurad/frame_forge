@@ -8,12 +8,14 @@ import { initToolEvents, setTool } from './tools.js';
 import { findFrameAt, getWorldPos } from './nodes.js';
 import { initModels, renderModels } from './models.js';
 import { initApi, renderApi } from './api.js';
+import { initColors, renderColors } from './colors.js';
 
 // Initialize event systems
 initCanvasEvents();
 initToolEvents();
 initModels();
 initApi();
+initColors();
 
 // Add element menu
 document.getElementById('btn-add-layer').addEventListener('click', e => {
@@ -111,25 +113,40 @@ imageInput.addEventListener('change', () => {
   if (btn) btn.addEventListener('click', () => createElement(type));
 });
 
+// Project name (editable)
+const projectNameInput = document.getElementById('project-name');
+if (projectNameInput) {
+  projectNameInput.value = state.projectName;
+  projectNameInput.addEventListener('input', () => { state.projectName = projectNameInput.value; });
+}
+
+// Collapse / expand the left sidebar
+document.getElementById('sidebar-toggle')?.addEventListener('click', () => document.body.classList.add('sidebar-collapsed'));
+document.getElementById('sidebar-open')?.addEventListener('click', () => document.body.classList.remove('sidebar-collapsed'));
+
 // Left-panel mode tabs (Design / Model / API)
 const modeTabs = document.querySelectorAll('.mode-tab');
 const designView = document.getElementById('design-view');
 const modelBoard = document.getElementById('model-board');
 const apiBoard = document.getElementById('api-board');
+const colorBoard = document.getElementById('color-board');
+const colorPanel = document.getElementById('color-panel');
 modeTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     modeTabs.forEach(t => t.classList.toggle('active', t === tab));
     const mode = tab.dataset.mode;
     const isDesign = mode === 'design';
-    const isModel = mode === 'model';
-    const isApi = mode === 'api';
     // Design-only chrome (toolbar, zoom, props panel, rulers) is hidden via this class
     document.body.classList.toggle('design-mode', isDesign);
     designView.style.display = isDesign ? '' : 'none';
-    modelBoard.style.display = isModel ? 'flex' : 'none';
-    apiBoard.style.display = isApi ? 'flex' : 'none';
-    if (isModel) renderModels();
-    if (isApi) renderApi();
+    modelBoard.style.display = mode === 'model' ? 'flex' : 'none';
+    apiBoard.style.display = mode === 'api' ? 'flex' : 'none';
+    colorBoard.style.display = mode === 'color' ? 'flex' : 'none';
+    colorPanel.style.display = mode === 'color' ? 'flex' : 'none';
+    if (mode === 'model') renderModels();
+    if (mode === 'api') renderApi();
+    if (mode === 'color') renderColors();
+    if (isDesign) render(); // refresh canvas in case color variables changed
   });
 });
 

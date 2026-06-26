@@ -130,7 +130,16 @@ function duplicateModel(id) {
 
 function addProperty(model) {
   if (!model) return;
-  model.properties.push({ id: 'p' + state.nextPropId++, name: 'field', type: makeType('String') });
+  model.properties.push({ id: 'p' + state.nextPropId++, name: 'field', type: makeType('String'), required: true });
+  renderModels();
+}
+
+// Toggle a field between required and optional (default is required).
+function toggleRequired(model, propId) {
+  if (!model) return;
+  const p = model.properties.find(p => p.id === propId);
+  if (!p) return;
+  p.required = !(p.required !== false);
   renderModels();
 }
 
@@ -177,11 +186,13 @@ const optTag = (value, selected) =>
 function renderCard(m) {
   const props = m.properties.map(p => {
     const perr = propError(m, p);
+    const required = p.required !== false;
     return `
     <div class="model-prop">
       <input class="prop-name-input${perr ? ' invalid' : ''}" data-model="${m.id}" data-prop="${p.id}" value="${esc(p.name)}" spellcheck="false" placeholder="name">
       <span class="prop-warn" data-pwarn="${p.id}" title="${perr ? esc(perr) : ''}"${perr ? '' : ' style="display:none"'}>&#9888;</span>
       <div class="prop-type">${renderTypePicker(p.type, m.id, p.id, [])}</div>
+      <button class="prop-req ${required ? 'required' : 'optional'}" data-model="${m.id}" data-req-prop="${p.id}" title="${required ? 'Required — click to make optional' : 'Optional — click to make required'}">${required ? 'required' : 'optional'}</button>
       <button class="prop-del" data-model="${m.id}" data-del-prop="${p.id}" title="Remove property">&times;</button>
     </div>`;
   }).join('');
@@ -224,6 +235,7 @@ export function initModels() {
     if (t.dataset.addProp) return addProperty(getModel(t.dataset.addProp));
     if (t.dataset.dupModel) return duplicateModel(t.dataset.dupModel);
     if (t.dataset.delModel) return deleteModel(t.dataset.delModel);
+    if (t.dataset.reqProp) return toggleRequired(getModel(t.dataset.model), t.dataset.reqProp);
     if (t.dataset.delProp) return deleteProperty(getModel(t.dataset.model), t.dataset.delProp);
   });
 

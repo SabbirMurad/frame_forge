@@ -3,7 +3,7 @@ import { canvasWrap } from './utils.js';
 import { render, updateNodeEl, zoomAt, fitView } from './render.js';
 import { renderProps } from './props.js';
 import { undo, redo } from './history.js';
-import { deleteSelected, duplicateSelected, groupSelected, ungroupSelected, bringToFront, sendToBack } from './operations.js';
+import { deleteSelected, duplicateSelected, groupSelected, ungroupSelected, copySelected, pasteClipboard } from './operations.js';
 
 // Tool to restore after a temporary space-bar pan (null = not space-panning)
 let spacePanPrev = null;
@@ -21,17 +21,6 @@ export function initToolEvents() {
   document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
     btn.addEventListener('click', () => setTool(btn.dataset.tool));
   });
-
-  // Toolbar actions
-  document.getElementById('btn-group').addEventListener('click', groupSelected);
-  document.getElementById('btn-ungroup').addEventListener('click', ungroupSelected);
-  document.getElementById('btn-front').addEventListener('click', bringToFront);
-  document.getElementById('btn-back').addEventListener('click', sendToBack);
-
-  // Zoom buttons
-  document.getElementById('btn-zoom-in').addEventListener('click', () => zoomAt(1.25));
-  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomAt(0.8));
-  document.getElementById('btn-fit').addEventListener('click', fitView);
 
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
@@ -53,6 +42,8 @@ export function initToolEvents() {
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicateSelected(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'c') { e.preventDefault(); copySelected(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'v') { e.preventDefault(); pasteClipboard(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'G') { e.preventDefault(); ungroupSelected(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'a') { e.preventDefault(); state.nodes.forEach(n => state.selected.add(n.id)); render(); return; }
