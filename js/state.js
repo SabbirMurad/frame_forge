@@ -92,6 +92,7 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     gap: 8,
     gapH: 8,
     gapV: 8,
+    padding: { t: 0, r: 0, b: 0, l: 0 },
     text: d.text || '',
     fontSize: d.fontSize || 14,
     fontWeight: d.fontWeight || '400',

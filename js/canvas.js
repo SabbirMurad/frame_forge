@@ -2,13 +2,14 @@ import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
 import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
-import { render, updateNodeEl, applyTransform, applyTextStyle } from './render.js';
+import { render, updateNodeEl, applyTransform, applyTextStyle, positionRadiusHandles } from './render.js';
 import { renderProps } from './props.js';
 import { setTool } from './tools.js';
 import { duplicateSelected, groupSelected, deleteSelected, bringToFront, sendToBack, cloneNodeInPlace } from './operations.js';
 
 let dragging = null;
 let resizing = null;
+let radiusDragging = null;
 let panning = false;
 let panStart = null;
 let drawStart = null;
@@ -220,6 +221,12 @@ function measureBetween(a, b) {
 
 export function attachNodeEvents(el, node) {
   el.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('radius-handle')) {
+      e.stopPropagation();
+      radiusDragging = { node, corner: e.target.dataset.radius };
+      saveHistory();
+      return;
+    }
     if (e.target.classList.contains('handle')) {
       e.stopPropagation();
       resizing = {
@@ -312,6 +319,25 @@ function onWrapMouseMove(e) {
     state.panX = panStart.px + (e.clientX - panStart.x);
     state.panY = panStart.py + (e.clientY - panStart.y);
     applyTransform();
+    return;
+  }
+
+  if (radiusDragging) {
+    const n = radiusDragging.node;
+    const el = document.getElementById('node-' + n.id);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const localX = (e.clientX - rect.left) / state.zoom;
+      const localY = (e.clientY - rect.top) / state.zoom;
+      const c = radiusDragging.corner;
+      const dx = Math.max(0, c.includes('w') ? localX : n.w - localX);
+      const dy = Math.max(0, c.includes('n') ? localY : n.h - localY);
+      const maxR = Math.min(n.w, n.h) / 2;
+      n.radius = Math.round(Math.min(Math.hypot(dx, dy) / Math.SQRT2, maxR));
+      updateNodeEl(n);
+      positionRadiusHandles(el, n);
+      renderProps();
+    }
     return;
   }
 
@@ -432,6 +458,8 @@ function onWrapMouseUp(e) {
     canvasWrap.style.cursor = state.tool === 'hand' ? 'grab' : 'default';
     return;
   }
+
+  if (radiusDragging) { radiusDragging = null; saveHistory(); render(); return; }
 
   if (resizing) { resizing = null; saveHistory(); render(); return; }
 

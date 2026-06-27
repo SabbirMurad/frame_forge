@@ -1,7 +1,7 @@
 import { state, getNode } from './state.js';
 import { noSelection, propsFields, esc } from './utils.js';
 import { colorCss } from './colors.js';
-import { updateNodeEl } from './render.js';
+import { updateNodeEl, render } from './render.js';
 import { renderLayers } from './layers.js';
 import { ddTrigger } from './dropdown.js';
 
@@ -71,7 +71,7 @@ export function renderProps() {
         <input class="prop-input" id="p-opacity" type="number" value="${Math.round(node.opacity * 100)}" min="0" max="100">
       </div>`}
     </div>
-    ${node.type === 'container' ? `
+    ${node.type === 'container' || node.type === 'row' || node.type === 'column' ? `
     <div class="prop-section">
       <div class="prop-section-title">Alignment</div>
       <div class="prop-row">
@@ -97,6 +97,21 @@ export function renderProps() {
       <div class="shape-toggle">
         <button class="shape-btn ${node.shape !== 'circle' ? 'active' : ''}" data-shape="rect">Rectangle</button>
         <button class="shape-btn ${node.shape === 'circle' ? 'active' : ''}" data-shape="circle">Circle</button>
+      </div>
+    </div>
+    <div class="prop-section">
+      <div class="prop-section-title">Padding</div>
+      <div class="prop-row">
+        <span class="prop-label" title="Top">T</span>
+        <input class="prop-input" id="p-pad-t" type="number" value="${node.padding.t}" min="0">
+        <span class="prop-label" title="Right">R</span>
+        <input class="prop-input" id="p-pad-r" type="number" value="${node.padding.r}" min="0">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label" title="Bottom">B</span>
+        <input class="prop-input" id="p-pad-b" type="number" value="${node.padding.b}" min="0">
+        <span class="prop-label" title="Left">L</span>
+        <input class="prop-input" id="p-pad-l" type="number" value="${node.padding.l}" min="0">
       </div>
     </div>` : ''}
     ${node.type === 'row' || node.type === 'column' ? `
@@ -136,35 +151,6 @@ export function renderProps() {
         ${state.colors.map(c => `<button class="color-pick ${node.colorId === c.id ? 'selected' : ''}" data-pickcolor="${c.id}" title="${esc(c.name)}" style="background:${colorCss(c)}"></button>`).join('')}
       </div>`}
     </div>` : ''}
-    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' && node.type !== 'image' ? `
-    <div class="prop-section">
-      <div class="prop-section-title">Fill</div>
-      <div class="shape-toggle" style="margin-bottom:8px">
-        <button class="fill-btn ${(node.fillType || 'solid') === 'solid' ? 'active' : ''}" data-filltype="solid">Solid</button>
-        <button class="fill-btn ${node.fillType === 'linear' ? 'active' : ''}" data-filltype="linear">Linear</button>
-        <button class="fill-btn ${node.fillType === 'radial' ? 'active' : ''}" data-filltype="radial">Radial</button>
-      </div>
-      ${(node.fillType || 'solid') === 'solid' ? `
-      <div class="color-row">
-        <input type="color" class="color-swatch" id="p-fill" value="${node.fill === 'transparent' ? '#ffffff' : node.fill}">
-        <input class="prop-input" id="p-fill-hex" value="${node.fill}" style="font-family:var(--mono);font-size:12px">
-      </div>` : `
-      ${node.fillType === 'linear' ? `
-      <div class="prop-row">
-        <span class="prop-label-wide">Angle</span>
-        <input class="prop-input" id="p-grad-angle" type="number" value="${node.gradient.angle}">
-      </div>` : ''}
-      <div class="grad-stops">
-        ${node.gradient.stops.map((s, i) => `
-        <div class="grad-stop">
-          <input type="color" class="color-swatch" data-stop-color="${i}" value="${s.color}">
-          <input class="prop-input" data-stop-hex="${i}" value="${esc(s.color)}" style="font-family:var(--mono);font-size:11px">
-          <input class="prop-input" data-stop-pos="${i}" type="number" value="${s.pos}" min="0" max="100" style="width:46px">
-          <button class="prop-del" data-stop-del="${i}" title="Remove stop"${node.gradient.stops.length <= 2 ? ' style="visibility:hidden"' : ''}>&times;</button>
-        </div>`).join('')}
-        <button class="prop-add" id="p-grad-addstop" style="margin:2px 0 0">+ Add stop</button>
-      </div>`}
-    </div>` : ''}
     ${node.type === 'container' || node.type === 'image' ? `
     <div class="prop-section">
       <div class="prop-section-title">Stroke</div>
@@ -178,33 +164,6 @@ export function renderProps() {
         <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px;flex:0 0 auto">
         <span class="prop-label-wide" style="width:auto">Style</span>
         ${styleDropdown(node)}
-      </div>
-    </div>` : ''}
-    ${node.type !== 'text' && node.type !== 'frame' && node.type !== 'container' && node.type !== 'image' ? `
-    <div class="prop-section">
-      <div class="prop-section-title">Stroke</div>
-      <div class="color-row">
-        <div class="prop-column">
-          <span class="prop-label">Color</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="color" class="color-swatch" id="p-stroke" value="${node.stroke === 'transparent' ? '#000000' : node.stroke}">
-            <input class="prop-input" id="p-stroke-hex" value="${node.stroke}" style="font-family:var(--mono);font-size:12px">
-          </div>
-        </div>
-        <div class="prop-column">
-          <span class="prop-label">Opacity</span>
-          <input class="prop-input" id="p-stroke-opacity" type="number" value="${Math.round((node.strokeOpacity ?? 1) * 100)}" min="0" max="100">
-        </div>
-      </div>
-      <div class="prop-row">
-        <div class="prop-column">
-          <span class="prop-label">Size</span>
-          <input class="prop-input" id="p-strokew" type="number" value="${node.strokeW}" min="0" style="width:50px">
-        </div>
-        <div class="prop-column">
-          <span class="prop-label-wide">Style</span>
-          ${styleDropdown(node)}
-        </div>
       </div>
     </div>` : ''}
     ${node.type === 'text' ? `
@@ -244,11 +203,14 @@ export function renderProps() {
     document.querySelectorAll('.shape-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         node.shape = btn.dataset.shape;
-        updateNodeEl(node);
-        renderProps();
+        render();        // re-render so radius handles appear/disappear with the shape
         renderLayers();
       });
     });
+    bindPropNum('p-pad-t', v => { node.padding.t = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-pad-r', v => { node.padding.r = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-pad-b', v => { node.padding.b = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-pad-l', v => { node.padding.l = Math.max(0, v); updateNodeEl(node); });
   }
 
   if (node.type === 'row' || node.type === 'column') {
@@ -266,41 +228,11 @@ export function renderProps() {
     const gotoColors = document.getElementById('p-goto-colors');
     if (gotoColors) gotoColors.addEventListener('click', () => document.querySelector('.mode-tab[data-mode="color"]')?.click());
 
-    bindColor('p-fill', 'p-fill-hex', v => { node.fill = v; updateNodeEl(node); });
-
-    // Fill type (solid / linear / radial) + gradient editor
-    document.querySelectorAll('.fill-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        node.fillType = btn.dataset.filltype;
-        updateNodeEl(node);
-        renderProps();
-      });
-    });
-    bindPropNum('p-grad-angle', v => { node.gradient.angle = v; updateNodeEl(node); });
-    node.gradient.stops.forEach((stop, i) => {
-      const sc = document.querySelector(`[data-stop-color="${i}"]`);
-      const sh = document.querySelector(`[data-stop-hex="${i}"]`);
-      const sp = document.querySelector(`[data-stop-pos="${i}"]`);
-      const sd = document.querySelector(`[data-stop-del="${i}"]`);
-      if (sc) sc.addEventListener('input', () => { stop.color = sc.value; if (sh) sh.value = sc.value; updateNodeEl(node); });
-      if (sh) sh.addEventListener('input', () => { if (/^#[0-9a-f]{3,8}$/i.test(sh.value)) { stop.color = sh.value; if (sc) sc.value = sh.value; updateNodeEl(node); } });
-      if (sp) sp.addEventListener('input', () => { stop.pos = Math.min(100, Math.max(0, parseFloat(sp.value) || 0)); updateNodeEl(node); });
-      if (sd) sd.addEventListener('click', () => { if (node.gradient.stops.length > 2) { node.gradient.stops.splice(i, 1); updateNodeEl(node); renderProps(); } });
-    });
-    const addStop = document.getElementById('p-grad-addstop');
-    if (addStop) addStop.addEventListener('click', () => {
-      const stops = node.gradient.stops;
-      stops.push({ color: stops[stops.length - 1]?.color || '#ffffff', pos: 100 });
-      updateNodeEl(node);
-      renderProps();
-    });
-
-    bindColor('p-stroke', 'p-stroke-hex', v => { node.stroke = v; updateNodeEl(node); });
+    // Stroke color (container/image) is picked from the Color tab's solid colors.
     document.querySelectorAll('[data-strokecolor]').forEach(btn => {
       btn.addEventListener('click', () => { node.strokeColorId = btn.dataset.strokecolor || null; updateNodeEl(node); renderProps(); });
     });
     bindPropNum('p-strokew', v => { node.strokeW = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-stroke-opacity', v => { node.strokeOpacity = Math.min(1, Math.max(0, v / 100)); updateNodeEl(node); });
   } else {
     const ta = document.getElementById('p-text');
     if (ta) ta.addEventListener('input', () => { node.text = ta.value; updateNodeEl(node); });
@@ -334,11 +266,4 @@ function bindProp(id, fn) {
 function bindPropNum(id, fn) {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', () => fn(parseFloat(el.value) || 0));
-}
-
-function bindColor(colorId, hexId, fn) {
-  const colorEl = document.getElementById(colorId);
-  const hexEl = document.getElementById(hexId);
-  if (colorEl) colorEl.addEventListener('input', () => { if (hexEl) hexEl.value = colorEl.value; fn(colorEl.value); });
-  if (hexEl) hexEl.addEventListener('input', () => { if (hexEl.value.match(/^#[0-9a-f]{6}$/i)) { if (colorEl) colorEl.value = hexEl.value; fn(hexEl.value); } });
 }

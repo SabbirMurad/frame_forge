@@ -23,16 +23,24 @@ export function render() {
 
 export const FLEX_TYPES = ['row', 'column', 'wrap'];
 
-// Lay out a node's children with flexbox (auto-layout) instead of absolute positions
+// Lay out a node's children with flexbox (auto-layout) instead of absolute positions.
+// Row/column also honour the node's `alignment` (Horiz/Vert) — mapped onto the
+// main/cross axis depending on the flex direction.
 function applyFlexLayout(el, node) {
   el.style.display = node.visible ? 'flex' : 'none';
   el.style.alignContent = 'flex-start';
+  const a = node.alignment || { h: 'left', v: 'top' };
   if (node.type === 'row') {
     el.style.flexDirection = 'row'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
+    el.style.justifyContent = ALIGN_H[a.h] || 'flex-start';   // horizontal = main axis
+    el.style.alignItems = ALIGN_V[a.v] || 'flex-start';       // vertical   = cross axis
   } else if (node.type === 'column') {
     el.style.flexDirection = 'column'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
+    el.style.justifyContent = ALIGN_V[a.v] || 'flex-start';   // vertical   = main axis
+    el.style.alignItems = ALIGN_H[a.h] || 'flex-start';       // horizontal = cross axis
   } else if (node.type === 'wrap') {
     el.style.flexDirection = 'row'; el.style.flexWrap = 'wrap'; el.style.gap = node.gapV + 'px ' + node.gapH + 'px';
+    el.style.justifyContent = ''; el.style.alignItems = '';
   }
 }
 
@@ -160,6 +168,12 @@ function applyStroke(el, node) {
   else el.style.border = 'none';
 }
 
+// Inner padding (container only) — insets its single child from the edges.
+function applyPadding(el, node) {
+  const p = node.padding || { t: 0, r: 0, b: 0, l: 0 };
+  el.style.padding = `${p.t}px ${p.r}px ${p.b}px ${p.l}px`;
+}
+
 // A text node takes all its typography (family/size/weight/line-height/spacing
 // and colour) from a referenced Typography style variable. With no style
 // selected it falls back to a plain default so the text stays legible.
@@ -199,6 +213,7 @@ export function renderNode(node, parent) {
     applyFill(el, node);
     applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    if (node.type === 'container') applyPadding(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     applyTextStyle(el, node);
@@ -208,6 +223,7 @@ export function renderNode(node, parent) {
   if (state.selected.has(node.id)) {
     el.classList.add('selected');
     if (node.type !== 'frame') addHandles(el);
+    if ((node.type === 'container' || node.type === 'image') && node.shape !== 'circle') addRadiusHandles(el, node);
   }
 
   if (node.children && node.children.length) {
@@ -230,6 +246,30 @@ function addHandles(el) {
   });
 }
 
+// Figma-style corner-radius handles: a small circle near each corner. Dragging
+// any of them sets the (uniform) border radius. Container & image only.
+function addRadiusHandles(el, node) {
+  ['nw', 'ne', 'sw', 'se'].forEach(corner => {
+    const h = document.createElement('div');
+    h.className = 'radius-handle';
+    h.dataset.radius = corner;
+    el.appendChild(h);
+  });
+  positionRadiusHandles(el, node);
+}
+
+// Place each radius handle inset from its corner by the current radius (clamped
+// so it stays grabbable on small/large nodes).
+export function positionRadiusHandles(el, node) {
+  const maxR = Math.min(node.w, node.h) / 2;
+  const inset = Math.min(Math.max(node.radius, 10), maxR);
+  el.querySelectorAll('.radius-handle').forEach(h => {
+    const c = h.dataset.radius;
+    h.style.left = (c.includes('w') ? inset : node.w - inset) + 'px';
+    h.style.top = (c.includes('n') ? inset : node.h - inset) + 'px';
+  });
+}
+
 export function updateNodeEl(node) {
   const el = document.getElementById('node-' + node.id);
   if (!el) return;
@@ -241,7 +281,9 @@ export function updateNodeEl(node) {
     applyFill(el, node);
     applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    if (node.type === 'container') applyPadding(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
+    if (el.querySelector('.radius-handle')) positionRadiusHandles(el, node);
   } else {
     applyTextStyle(el, node);
     el.textContent = node.text;

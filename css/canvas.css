@@ -29,6 +29,15 @@
 .handle-w  { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
 .handle-e  { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
 
+/* Corner-radius handles — small circles inset from each corner */
+.radius-handle {
+  position: absolute; width: 9px; height: 9px; border-radius: 50%;
+  background: white; border: 1.5px solid var(--accent);
+  transform: translate(-50%, -50%); z-index: 11; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.radius-handle:hover { background: var(--accent); }
+
 /* Selection Box */
 #selection-box {
   position: absolute; border: 1px solid var(--accent); background: var(--accent-glow);
