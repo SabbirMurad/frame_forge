@@ -27,6 +27,7 @@ export function typeToString(t) {
 }
 
 const getModel = (id) => state.models.find(m => m.id === id);
+const getEnum = (id) => state.enums.find(e => e.id === id);
 
 // Validate a model name against Dart class-name rules (PascalCase identifier).
 // Returns a human-readable issue, or null when the name is valid.
@@ -77,13 +78,93 @@ export function validModelNames() {
 }
 
 // Full validation for a model: name format, then uniqueness across models.
-function modelError(m) {
+export function modelError(m) {
   const fmt = nameError(m.name);
   if (fmt) return fmt;
   if (state.models.some(o => o !== m && o.name.trim() === m.name.trim())) {
     return 'Another model has this name';
   }
+  if (state.enums.some(e => e.name.trim() === m.name.trim())) {
+    return 'An enum already has this name';
+  }
   return null;
+}
+
+// ───────── Enums ─────────
+
+// Enum names follow the same PascalCase rule as models; they share the type
+// namespace, so an enum can't collide with another enum or a model.
+export function enumError(en) {
+  const fmt = nameError(en.name);
+  if (fmt) return fmt;
+  if (state.enums.some(o => o !== en && o.name.trim() === en.name.trim())) return 'Another enum has this name';
+  if (state.models.some(m => m.name.trim() === en.name.trim())) return 'A model already has this name';
+  return null;
+}
+
+// Enum value names are camelCase identifiers, unique within their enum.
+function enumValNameError(name) {
+  if (!name.trim()) return 'Name can’t be empty';
+  if (/^[0-9]/.test(name)) return 'Can’t start with a number';
+  if (/\s/.test(name)) return 'No spaces allowed';
+  if (/[^A-Za-z0-9]/.test(name)) return 'Only letters and numbers allowed';
+  if (!/^[a-z]/.test(name)) return 'Must be camelCase (start with a lowercase letter)';
+  return null;
+}
+function enumValError(en, v) {
+  const fmt = enumValNameError(v.name);
+  if (fmt) return fmt;
+  if (en.values.some(o => o !== v && o.name.trim() === v.name.trim())) return 'Duplicate value';
+  return null;
+}
+
+// Sync enum name warnings (renaming can change a model's collision status too).
+function refreshEnumWarns() {
+  state.enums.forEach(en => {
+    const err = enumError(en);
+    const w = document.querySelector(`[data-enumwarn="${en.id}"]`);
+    if (w) { w.title = err || ''; w.style.display = err ? '' : 'none'; }
+    const input = document.querySelector(`[data-ename="${en.id}"]`);
+    if (input) input.classList.toggle('invalid', !!err);
+  });
+  refreshAllWarns();
+}
+
+function refreshEnumValWarns(en) {
+  en.values.forEach(v => {
+    const err = enumValError(en, v);
+    const w = document.querySelector(`[data-evalwarn="${v.id}"]`);
+    if (w) { w.title = err || ''; w.style.display = err ? '' : 'none'; }
+    const input = document.querySelector(`[data-evid="${v.id}"]`);
+    if (input) input.classList.toggle('invalid', !!err);
+  });
+}
+
+function addEnum() {
+  const n = state.nextEnumId++;
+  state.enums.push({ id: 'e' + n, name: 'Enum' + n, values: [{ id: 'ev' + state.nextEnumValId++, name: 'valueOne' }] });
+  saveHistory();
+  renderModels();
+}
+
+function deleteEnum(id) {
+  state.enums = state.enums.filter(e => e.id !== id);
+  saveHistory();
+  renderModels();
+}
+
+function addEnumValue(en) {
+  if (!en) return;
+  en.values.push({ id: 'ev' + state.nextEnumValId++, name: 'value' });
+  saveHistory();
+  renderModels();
+}
+
+function deleteEnumValue(en, valId) {
+  if (!en) return;
+  en.values = en.values.filter(v => v.id !== valId);
+  saveHistory();
+  renderModels();
 }
 
 // Sync every card's warning icon + input outline (no re-render). Renaming one
@@ -168,13 +249,15 @@ function setTypeAtPath(prop, path, newType) {
 // Recursively render the cascading dropdowns for a type (and its generic args).
 function renderTypePicker(t, modelId, propId, path) {
   const modelNames = state.models.map(m => m.name);
+  const enumNames = state.enums.map(e => e.name);
   const options = [
     ...PRIMITIVES.map(v => ({ value: v, label: v, group: 'Primitive' })),
     ...COLLECTIONS.map(v => ({ value: v, label: v, group: 'Collection' })),
     ...modelNames.map(v => ({ value: v, label: v, group: 'Models' })),
+    ...enumNames.map(v => ({ value: v, label: v, group: 'Enums' })),
   ];
-  // Keep an unknown base (e.g. a renamed/deleted model reference) selectable.
-  const known = [...PRIMITIVES, ...COLLECTIONS, ...modelNames];
+  // Keep an unknown base (e.g. a renamed/deleted model/enum reference) selectable.
+  const known = [...PRIMITIVES, ...COLLECTIONS, ...modelNames, ...enumNames];
   if (!known.includes(t.base)) options.unshift({ value: t.base, label: t.base });
 
   let html = ddTrigger({ value: t.base, options, data: { model: modelId, prop: propId, path: path.join('.') } });
@@ -216,17 +299,53 @@ function renderCard(m) {
   </div>`;
 }
 
+function renderEnumCard(en) {
+  const err = enumError(en);
+  const vals = en.values.map(v => {
+    const verr = enumValError(en, v);
+    return `
+    <div class="model-prop">
+      <input class="prop-name-input${verr ? ' invalid' : ''}" data-evid="${v.id}" data-eid="${en.id}" value="${esc(v.name)}" spellcheck="false" placeholder="value" style="flex:1;width:auto">
+      <span class="prop-warn" data-evalwarn="${v.id}" title="${verr ? esc(verr) : ''}"${verr ? '' : ' style="display:none"'}>&#9888;</span>
+      <button class="prop-del" data-eid="${en.id}" data-del-eval="${v.id}" title="Remove value">&times;</button>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="model-card">
+    <div class="model-card-head">
+      <input class="model-name-input${err ? ' invalid' : ''}" data-ename="${en.id}" value="${esc(en.name)}" spellcheck="false" placeholder="EnumName">
+      <span class="model-warn" data-enumwarn="${en.id}" title="${err ? esc(err) : ''}"${err ? '' : ' style="display:none"'}>&#9888;</span>
+      <button class="model-del" data-del-enum="${en.id}" title="Delete enum">&times;</button>
+    </div>
+    <div class="model-props">${vals || ''}</div>
+    <button class="prop-add" data-add-eval="${en.id}">+ Add value</button>
+  </div>`;
+}
+
 export function renderModels() {
   const board = document.getElementById('model-board');
   if (!board) return;
   board.innerHTML = `
-    <div class="model-board-head">
-      <span class="model-board-title">Models</span>
-      <button class="model-add-btn" id="model-new">+ New Model</button>
+    <div class="model-section">
+      <div class="model-board-head">
+        <span class="model-board-title">Models</span>
+        <button class="model-add-btn" id="model-new">+ New Model</button>
+      </div>
+      <div class="model-cards">
+        ${state.models.map(renderCard).join('')}
+        ${state.models.length === 0 ? `<div class="model-empty">No models yet — click “+ New Model” to create one.</div>` : ''}
+      </div>
     </div>
-    <div class="model-cards">
-      ${state.models.map(renderCard).join('')}
-      ${state.models.length === 0 ? `<div class="model-empty">No models yet — click “+ New Model” to create one.</div>` : ''}
+    <div class="model-section">
+      <div class="model-board-head">
+        <span class="model-board-title">Enums</span>
+        <button class="model-add-btn" id="enum-new">+ New Enum</button>
+      </div>
+      <div class="model-cards">
+        ${state.enums.map(renderEnumCard).join('')}
+        ${state.enums.length === 0 ? `<div class="model-empty">No enums yet — click “+ New Enum” to create one.</div>` : ''}
+      </div>
     </div>`;
 }
 
@@ -242,12 +361,22 @@ export function initModels() {
     if (t.dataset.delModel) return deleteModel(t.dataset.delModel);
     if (t.dataset.reqProp) return toggleRequired(getModel(t.dataset.model), t.dataset.reqProp);
     if (t.dataset.delProp) return deleteProperty(getModel(t.dataset.model), t.dataset.delProp);
+    if (t.id === 'enum-new') return addEnum();
+    if (t.dataset.addEval) return addEnumValue(getEnum(t.dataset.addEval));
+    if (t.dataset.delEnum) return deleteEnum(t.dataset.delEnum);
+    if (t.dataset.delEval) return deleteEnumValue(getEnum(t.dataset.eid), t.dataset.delEval);
   });
 
   // Live name edits: update state without re-rendering so focus/caret is kept.
   board.addEventListener('input', e => {
     const t = e.target;
-    if (t.classList.contains('model-name-input')) {
+    if (t.dataset.ename != null) {
+      const en = getEnum(t.dataset.ename); if (en) { en.name = t.value; refreshEnumWarns(); }
+    } else if (t.dataset.evid != null) {
+      const en = getEnum(t.dataset.eid);
+      const v = en && en.values.find(v => v.id === t.dataset.evid);
+      if (v) { v.name = t.value; refreshEnumValWarns(en); }
+    } else if (t.classList.contains('model-name-input')) {
       const m = getModel(t.dataset.model); if (m) { m.name = t.value; refreshAllWarns(); }
     } else if (t.classList.contains('prop-name-input')) {
       const m = getModel(t.dataset.model);

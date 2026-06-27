@@ -10,6 +10,8 @@ import { initModels, renderModels } from './models.js';
 import { initApi, renderApi } from './api.js';
 import { initColors, renderColors } from './colors.js';
 import { initTypography, renderTypography } from './typography.js';
+import { exportModelsCode } from './codegen.js';
+import { updateExportButton } from './validate.js';
 import { initDropdowns } from './dropdown.js';
 
 // Initialize event systems
@@ -117,6 +119,26 @@ imageInput.addEventListener('change', () => {
   if (btn) btn.addEventListener('click', () => createElement(type));
 });
 
+// Export all model code as a downloadable Dart project (one file per model + used enums)
+document.getElementById('btn-export-code')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const r = exportModelsCode();
+  if (!r.ok) { showToast('Nothing to export — create a model or provider first'); return; }
+  const parts = [];
+  if (r.models) parts.push(`${r.models} model${r.models === 1 ? '' : 's'}`);
+  if (r.enums) parts.push(`${r.enums} enum${r.enums === 1 ? '' : 's'}`);
+  if (r.providers) parts.push(`${r.providers} provider${r.providers === 1 ? '' : 's'}`);
+  let msg = 'Exported ' + (parts.join(' + ') || 'nothing');
+  if (r.skipped) msg += ` (${r.skipped} skipped — fix name errors)`;
+  showToast(msg);
+});
+
+// Keep the export button's enabled/disabled state in sync with project validity.
+// These events cover edits (input), commits (change), dropdown picks (dd:change),
+// add/delete clicks, and undo/redo + delete keystrokes (keyup).
+['input', 'change', 'dd:change', 'click', 'keyup'].forEach(ev =>
+  document.addEventListener(ev, () => updateExportButton()));
+
 // Project name (editable)
 const projectNameInput = document.getElementById('project-name');
 if (projectNameInput) {
@@ -197,4 +219,5 @@ frameMenu.addEventListener('click', e => {
 saveHistory();
 applyTransform();
 render();
+updateExportButton();
 showToast('FrameForge ready \u2014 press V to select, R for container, T for text');

@@ -97,6 +97,11 @@ function colorError(c) {
   return null;
 }
 
+// True when any color variable has a validation error (gates the export button).
+export function anyColorError() {
+  return state.colors.some(c => colorError(c) !== null);
+}
+
 // CSS background string for a color variable.
 export function colorCss(c) {
   if (!c) return 'transparent';

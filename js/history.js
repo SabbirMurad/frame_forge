@@ -13,7 +13,8 @@ const KEYS = [
   'colors', 'nextColorId', 'selectedColorId',
   'typography', 'nextTypoId', 'selectedTypoId',
   'models', 'nextModelId', 'nextPropId',
-  'apis', 'apiBaseUrl', 'nextApiId', 'nextHeaderId', 'nextParamId',
+  'enums', 'nextEnumId', 'nextEnumValId',
+  'providers', 'nextProviderId', 'apiBaseUrl', 'nextApiId', 'nextHeaderId', 'nextParamId',
 ];
 
 function snapshot() {

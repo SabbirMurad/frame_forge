@@ -1,4 +1,5 @@
-import { state, getNode, getColorById } from './state.js';
+import { state, getNode, getColorById, getTypoById } from './state.js';
+import { colorCss } from './colors.js';
 import { SINGLE_CHILD_TYPES, MULTI_CHILD_TYPES } from './nodes.js';
 import { canvas, zoomLabel, canvasWrap } from './utils.js';
 import { drawRulers } from './rulers.js';
@@ -159,6 +160,29 @@ function applyStroke(el, node) {
   else el.style.border = 'none';
 }
 
+// A text node takes all its typography (family/size/weight/line-height/spacing
+// and colour) from a referenced Typography style variable. With no style
+// selected it falls back to a plain default so the text stays legible.
+export function applyTextStyle(el, node) {
+  const t = node.typoId ? getTypoById(node.typoId) : null;
+  if (t) {
+    el.style.fontFamily = /\s/.test(t.fontFamily) ? `'${t.fontFamily}'` : t.fontFamily;
+    el.style.fontSize = t.fontSize + 'px';
+    el.style.fontWeight = t.fontWeight;
+    el.style.lineHeight = t.lineHeight;
+    el.style.letterSpacing = t.letterSpacing + 'px';
+    const c = t.colorId ? getColorById(t.colorId) : null;
+    el.style.color = c && c.fillType === 'solid' ? colorCss(c) : '#1a1a1a';
+  } else {
+    el.style.fontFamily = '';
+    el.style.fontSize = (node.fontSize || 16) + 'px';
+    el.style.fontWeight = node.fontWeight || '400';
+    el.style.lineHeight = '1.4';
+    el.style.letterSpacing = '';
+    el.style.color = node.color || '#1a1a1a';
+  }
+}
+
 export function renderNode(node, parent) {
   const el = document.createElement('div');
   el.className = 'node ' + (node.type === 'text' ? 'text-node' : node.type);
@@ -177,10 +201,7 @@ export function renderNode(node, parent) {
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
-    el.style.fontSize = node.fontSize + 'px';
-    el.style.fontWeight = node.fontWeight;
-    el.style.color = node.color;
-    el.style.lineHeight = '1.4';
+    applyTextStyle(el, node);
     el.textContent = node.text;
   }
 
@@ -222,9 +243,7 @@ export function updateNodeEl(node) {
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
-    el.style.fontSize = node.fontSize + 'px';
-    el.style.fontWeight = node.fontWeight;
-    el.style.color = node.color;
+    applyTextStyle(el, node);
     el.textContent = node.text;
   }
 }

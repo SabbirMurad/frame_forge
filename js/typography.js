@@ -36,6 +36,11 @@ function typoError(t) {
   return null;
 }
 
+// True when any text style has a validation error (gates the export button).
+export function anyTypoError() {
+  return state.typography.some(t => typoError(t) !== null);
+}
+
 // Sync the controller's name warning icon + input outline without rebuilding.
 function refreshTypoWarn(t) {
   const err = typoError(t);

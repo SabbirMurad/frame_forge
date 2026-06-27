@@ -20,7 +20,6 @@ propsFields.addEventListener('dd:change', e => {
   const v = e.detail.value;
   switch (e.target.dataset.pp) {
     case 'fit': node.fit = v; updateNodeEl(node); break;
-    case 'fontweight': node.fontWeight = v; updateNodeEl(node); break;
     case 'sstyle': node.strokeStyle = v; updateNodeEl(node); renderProps(); break;
   }
 });
@@ -214,16 +213,16 @@ export function renderProps() {
       <div class="prop-row">
         <textarea class="prop-input" id="p-text" rows="3" style="resize:vertical">${esc(node.text)}</textarea>
       </div>
-      <div class="prop-row">
-        <span class="prop-label" style="width:auto">Sz</span>
-        <input class="prop-input" id="p-fontsize" type="number" value="${node.fontSize}" min="1">
-        <span class="prop-label">W</span>
-        ${ddTrigger({ value: String(node.fontWeight), options: ['300', '400', '500', '600', '700'].map(w => ({ value: w, label: w })), data: { pp: 'fontweight' }, triggerClass: 'dd-block' })}
-      </div>
-      <div class="color-row">
-        <input type="color" class="color-swatch" id="p-color" value="${node.color}">
-        <input class="prop-input" id="p-color-hex" value="${node.color}" style="font-family:var(--mono);font-size:12px">
-      </div>
+    </div>
+    <div class="prop-section">
+      <div class="prop-section-title">Style</div>
+      ${state.typography.length === 0 ? `
+      <div class="api-hint" style="margin-bottom:8px">No text styles yet.</div>
+      <button class="goto-colors-btn" id="p-goto-typo">+ Create a style</button>` : `
+      <div class="typo-pick-list">
+        <button class="typo-pick ${!node.typoId ? 'selected' : ''}" data-picktypo="">None</button>
+        ${state.typography.map(t => `<button class="typo-pick ${node.typoId === t.id ? 'selected' : ''}" data-picktypo="${t.id}" title="${esc(t.name)}">${esc(t.name)}</button>`).join('')}
+      </div>`}
     </div>` : ''}
   `;
 
@@ -305,8 +304,11 @@ export function renderProps() {
   } else {
     const ta = document.getElementById('p-text');
     if (ta) ta.addEventListener('input', () => { node.text = ta.value; updateNodeEl(node); });
-    bindPropNum('p-fontsize', v => { node.fontSize = Math.max(1, v); updateNodeEl(node); });
-    bindColor('p-color', 'p-color-hex', v => { node.color = v; updateNodeEl(node); });
+    document.querySelectorAll('[data-picktypo]').forEach(btn => {
+      btn.addEventListener('click', () => { node.typoId = btn.dataset.picktypo || null; updateNodeEl(node); renderProps(); });
+    });
+    const gotoTypo = document.getElementById('p-goto-typo');
+    if (gotoTypo) gotoTypo.addEventListener('click', () => document.querySelector('.mode-tab[data-mode="typography"]')?.click());
   }
 
   document.querySelectorAll('[data-ah]').forEach(b => b.addEventListener('click', () => { node.alignment.h = b.dataset.ah; updateNodeEl(node); renderProps(); }));

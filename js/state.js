@@ -23,8 +23,14 @@ export const state = {
   models: [],
   nextModelId: 1,
   nextPropId: 1,
-  // API tab: endpoints sharing one base URL
-  apis: [],
+  // Model tab: enums (named sets of values) usable as field types
+  enums: [],
+  nextEnumId: 1,
+  nextEnumValId: 1,
+  // Provider tab: providers group related endpoints (apis) and share one base URL.
+  // Each provider has a name + output model; each endpoint has its own name + output.
+  providers: [],
+  nextProviderId: 1,
   apiBaseUrl: '',
   nextApiId: 1,
   nextHeaderId: 1,
@@ -37,6 +43,10 @@ export function getNode(id) {
 
 export function getColorById(id) {
   return state.colors.find(c => c.id === id);
+}
+
+export function getTypoById(id) {
+  return state.typography.find(t => t.id === id);
 }
 
 export function makeNode(type, x, y, w, h, parentId = null) {
@@ -68,6 +78,7 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     shape: 'rect',
     colorId: null,
     strokeColorId: null,
+    typoId: null,
     fillType: 'solid',
     gradient: {
       angle: 90,

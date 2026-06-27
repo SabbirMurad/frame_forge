@@ -88,7 +88,12 @@ export function initDropdowns() {
     if (!e.target.closest('#dd-menu')) closeDropdown();
   });
 
-  // Reposition concerns: just close on scroll/resize (native selects do the same).
+  // Close on resize, and on scroll of the page/board behind the menu — but NOT
+  // when the scroll happens inside the (taller-than-viewport) menu itself.
   window.addEventListener('resize', closeDropdown);
-  document.addEventListener('scroll', closeDropdown, true);
+  document.addEventListener('scroll', e => {
+    const t = e.target;
+    if (t && t.nodeType === 1 && t.closest('#dd-menu')) return;
+    closeDropdown();
+  }, true);
 }

@@ -2,7 +2,7 @@ import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
 import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
-import { render, updateNodeEl, applyTransform } from './render.js';
+import { render, updateNodeEl, applyTransform, applyTextStyle } from './render.js';
 import { renderProps } from './props.js';
 import { setTool } from './tools.js';
 import { duplicateSelected, groupSelected, deleteSelected, bringToFront, sendToBack, cloneNodeInPlace } from './operations.js';
@@ -82,6 +82,48 @@ function rangeGap(aMin, aMax, bMin, bMax) {
   if (aMax <= bMin) return bMin - aMax;
   if (bMax <= aMin) return aMin - bMax;
   return -1;
+}
+
+// Snap the edge(s) being dragged by a resize handle to other elements'
+// edges/centers, keeping the opposite (fixed) edge anchored. Mirrors snapNode
+// but only the moving edges seek a match. Returns the guide line(s) to draw.
+function snapResize(node, handle, targets) {
+  const tol = SNAP_PX / state.zoom;
+  const wp = getWorldPos(node);
+  const L = wp.x, T = wp.y, R = wp.x + node.w, B = wp.y + node.h;
+  const movingR = handle.includes('e'), movingL = handle.includes('w');
+  const movingB = handle.includes('s'), movingT = handle.includes('n');
+
+  let bestX = null, bestY = null;
+  for (const r of targets) {
+    const xLines = [r.L, r.CX, r.R], yLines = [r.T, r.CY, r.B];
+    if (movingR) for (const tv of xLines) { const d = tv - R; if (Math.abs(d) <= tol && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) bestX = { edge: 'R', delta: d, line: tv, r }; }
+    if (movingL) for (const tv of xLines) { const d = tv - L; if (Math.abs(d) <= tol && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) bestX = { edge: 'L', delta: d, line: tv, r }; }
+    if (movingB) for (const tv of yLines) { const d = tv - B; if (Math.abs(d) <= tol && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) bestY = { edge: 'B', delta: d, line: tv, r }; }
+    if (movingT) for (const tv of yLines) { const d = tv - T; if (Math.abs(d) <= tol && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) bestY = { edge: 'T', delta: d, line: tv, r }; }
+  }
+
+  // Apply the snap, but never shrink below the 10px minimum.
+  if (bestX) {
+    if (bestX.edge === 'R') { if (node.w + bestX.delta >= 10) node.w += bestX.delta; else bestX = null; }
+    else { if (node.w - bestX.delta >= 10) { node.x += bestX.delta; node.w -= bestX.delta; } else bestX = null; }
+  }
+  if (bestY) {
+    if (bestY.edge === 'B') { if (node.h + bestY.delta >= 10) node.h += bestY.delta; else bestY = null; }
+    else { if (node.h - bestY.delta >= 10) { node.y += bestY.delta; node.h -= bestY.delta; } else bestY = null; }
+  }
+
+  const guides = [];
+  const w2 = getWorldPos(node);
+  if (bestX) {
+    const a = Math.min(w2.y, bestX.r.T), b = Math.max(w2.y + node.h, bestX.r.B);
+    guides.push({ type: 'v', x: bestX.line, a, b, dist: rangeGap(w2.y, w2.y + node.h, bestX.r.T, bestX.r.B) });
+  }
+  if (bestY) {
+    const a = Math.min(w2.x, bestY.r.L), b = Math.max(w2.x + node.w, bestY.r.R);
+    guides.push({ type: 'h', y: bestY.line, a, b, dist: rangeGap(w2.x, w2.x + node.w, bestY.r.L, bestY.r.R) });
+  }
+  return guides;
 }
 
 function drawGuides(guides) {
@@ -187,6 +229,7 @@ export function attachNodeEvents(el, node) {
         startY: e.clientY,
         origX: node.x, origY: node.y,
         origW: node.w, origH: node.h,
+        snapTargets: captureSnapTargets(node),
       };
       return;
     }
@@ -298,6 +341,12 @@ function onWrapMouseMove(e) {
     }
 
     n.x = x; n.y = y; n.w = w; n.h = h2;
+    // Snap the moving edge(s) to nearby elements (skipped during Shift-proportional resize)
+    if (resizing.snapTargets && !(e.shiftKey && corner)) {
+      drawGuides(snapResize(n, h, resizing.snapTargets));
+    } else {
+      clearGuides();
+    }
     updateNodeEl(n);
     renderProps();
     return;
@@ -511,9 +560,7 @@ function startTextEdit(node, el) {
   ta.value = node.text;
   ta.style.left = '0'; ta.style.top = '0';
   ta.style.width = node.w + 'px'; ta.style.height = node.h + 'px';
-  ta.style.fontSize = node.fontSize + 'px';
-  ta.style.fontWeight = node.fontWeight;
-  ta.style.color = node.color;
+  applyTextStyle(ta, node);
   el.textContent = '';
   el.appendChild(ta);
   ta.focus();

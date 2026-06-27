@@ -4,19 +4,75 @@ import { validModelNames } from './models.js';
 import { ddTrigger } from './dropdown.js';
 import { saveHistory } from './history.js';
 
-// API tab: REST endpoints that share one base URL. Each endpoint has a method,
-// version + route (appended to the base URL), headers, an optional body (only
-// for body-bearing methods), and an output that references a valid model.
+// Provider tab: a provider groups related REST endpoints that share one base URL.
+// Each provider has a name (camelCase) and an output model. Each endpoint under it
+// has its own name, method, version + route, headers, params, optional body, and
+// an output that references a model or raw JSON. Providers and endpoints share the
+// type/output namespace with the Model tab.
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const BODY_METHODS = ['POST', 'PUT', 'PATCH'];
 
-const getApi = (id) => state.apis.find(a => a.id === id);
+const getProvider = (id) => state.providers.find(p => p.id === id);
+// Endpoint ids are globally unique, so we can resolve one across all providers.
+function findApi(id) {
+  for (const p of state.providers) {
+    const a = p.apis.find(x => x.id === id);
+    if (a) return { provider: p, api: a };
+  }
+  return null;
+}
+const getApi = (id) => { const f = findApi(id); return f ? f.api : null; };
 const getHeader = (api, id) => api && api.headers.find(h => h.id === id);
 const getParam = (api, id) => api && (api.params || []).find(p => p.id === id);
 
-// Join base URL + version + route into one path (trimming stray slashes), then
-// append any query parameters as ?key=value&…
+// ───────── Naming validation (camelCase, same as Color / Typography) ─────────
+function nameError(name) {
+  if (!name.trim()) return 'Name can’t be empty';
+  if (/^[0-9]/.test(name)) return 'Can’t start with a number';
+  if (/\s/.test(name)) return 'No spaces allowed';
+  if (/[^A-Za-z0-9]/.test(name)) return 'Only letters and numbers allowed';
+  if (!/^[a-z]/.test(name)) return 'Must be camelCase (start with a lowercase letter)';
+  return null;
+}
+
+function provNameError(p) {
+  const fmt = nameError(p.name);
+  if (fmt) return fmt;
+  if (state.providers.some(o => o !== p && o.name.trim() === p.name.trim())) return 'Another provider has this name';
+  return null;
+}
+
+function apiNameError(provider, api) {
+  const fmt = nameError(api.name);
+  if (fmt) return fmt;
+  if (provider.apis.some(o => o !== api && o.name.trim() === api.name.trim())) return 'Duplicate endpoint name';
+  return null;
+}
+
+// True when an output references a model that no longer exists (or JSON where it
+// isn't allowed). `allowJson` is true for endpoints, false for providers.
+function outputRefBad(output, allowJson, models) {
+  if (!output.model) return false;
+  if (output.model === 'json') return !allowJson;
+  return !models.includes(output.model);
+}
+
+// Aggregate check used to gate the global export button.
+export function anyProviderError() {
+  const models = validModelNames();
+  for (const p of state.providers) {
+    if (provNameError(p)) return true;
+    if (outputRefBad(p.output, false, models)) return true;
+    for (const a of p.apis) {
+      if (apiNameError(p, a)) return true;
+      if (outputRefBad(a.output, true, models)) return true;
+    }
+  }
+  return false;
+}
+
+// Join base URL + version + route into one path, then append ?key=value query params.
 function fullUrl(api) {
   const path = [state.apiBaseUrl, api.version, api.route]
     .map(s => (s || '').trim().replace(/^\/+|\/+$/g, ''))
@@ -29,14 +85,34 @@ function fullUrl(api) {
   return qs ? `${path}?${qs}` : path;
 }
 
-function outputStr(api) {
+function apiOutputStr(api) {
   if (!api.output.model) return '—';
+  if (api.output.model === 'json') return api.output.type === 'list' ? 'List<dynamic>' : 'dynamic';
   return api.output.type === 'list' ? `List<${api.output.model}>` : api.output.model;
 }
+function provOutputStr(p) {
+  if (!p.output.model) return '—';
+  return p.output.type === 'list' ? `List<${p.output.model}>` : p.output.model;
+}
 
-function addApi() {
-  state.apis.push({
-    id: 'a' + state.nextApiId++,
+// ───────── CRUD ─────────
+function addProvider() {
+  const n = state.nextProviderId++;
+  state.providers.push({ id: 'pr' + n, name: 'provider' + n, output: { type: 'single', model: '' }, apis: [] });
+  saveHistory();
+  renderApi();
+}
+function delProvider(id) {
+  state.providers = state.providers.filter(p => p.id !== id);
+  saveHistory();
+  renderApi();
+}
+
+function addApi(provider) {
+  if (!provider) return;
+  const n = state.nextApiId++;
+  provider.apis.push({
+    id: 'a' + n, name: 'endpoint' + n,
     method: 'GET', version: 'v1', route: '',
     params: [], headers: [], body: '',
     output: { type: 'single', model: '' },
@@ -44,41 +120,18 @@ function addApi() {
   saveHistory();
   renderApi();
 }
-
 function delApi(id) {
-  state.apis = state.apis.filter(a => a.id !== id);
+  const f = findApi(id);
+  if (!f) return;
+  f.provider.apis = f.provider.apis.filter(a => a.id !== id);
   saveHistory();
   renderApi();
 }
 
-function addHeader(api) {
-  if (!api) return;
-  api.headers.push({ id: 'h' + state.nextHeaderId++, key: '', value: '' });
-  saveHistory();
-  renderApi();
-}
-
-function delHeader(api, id) {
-  if (!api) return;
-  api.headers = api.headers.filter(h => h.id !== id);
-  saveHistory();
-  renderApi();
-}
-
-function addParam(api) {
-  if (!api) return;
-  if (!api.params) api.params = [];
-  api.params.push({ id: 'q' + state.nextParamId++, key: '', value: '' });
-  saveHistory();
-  renderApi();
-}
-
-function delParam(api, id) {
-  if (!api) return;
-  api.params = (api.params || []).filter(p => p.id !== id);
-  saveHistory();
-  renderApi();
-}
+function addHeader(api) { if (!api) return; api.headers.push({ id: 'h' + state.nextHeaderId++, key: '', value: '' }); saveHistory(); renderApi(); }
+function delHeader(api, id) { if (!api) return; api.headers = api.headers.filter(h => h.id !== id); saveHistory(); renderApi(); }
+function addParam(api) { if (!api) return; if (!api.params) api.params = []; api.params.push({ id: 'q' + state.nextParamId++, key: '', value: '' }); saveHistory(); renderApi(); }
+function delParam(api, id) { if (!api) return; api.params = (api.params || []).filter(p => p.id !== id); saveHistory(); renderApi(); }
 
 // Live-refresh a card's URL preview without a full re-render.
 function updateUrl(api) {
@@ -88,9 +141,30 @@ function updateUrl(api) {
   el.innerHTML = u ? esc(u) : '<span class="api-url-empty">set base URL &amp; route</span>';
 }
 
-function renderApiCard(api) {
+// Live-refresh provider / endpoint name warnings (no re-render, keeps focus).
+function refreshProvWarns() {
+  state.providers.forEach(p => {
+    const err = provNameError(p);
+    const w = document.querySelector(`[data-provwarn="${p.id}"]`);
+    if (w) { w.title = err || ''; w.style.display = err ? '' : 'none'; }
+    const inp = document.querySelector(`[data-provname="${p.id}"]`);
+    if (inp) inp.classList.toggle('invalid', !!err);
+  });
+}
+function refreshApiWarns(provider) {
+  provider.apis.forEach(a => {
+    const err = apiNameError(provider, a);
+    const w = document.querySelector(`[data-apiwarn="${a.id}"]`);
+    if (w) { w.title = err || ''; w.style.display = err ? '' : 'none'; }
+    const inp = document.querySelector(`[data-apiname="${a.id}"]`);
+    if (inp) inp.classList.toggle('invalid', !!err);
+  });
+}
+
+function renderEndpointCard(provider, api) {
   const models = validModelNames();
   const hasBody = BODY_METHODS.includes(api.method);
+  const nerr = apiNameError(provider, api);
 
   const headerRows = api.headers.map(h => `
     <div class="api-header-row">
@@ -106,13 +180,14 @@ function renderApiCard(api) {
       <button class="prop-del" data-api="${api.id}" data-del-p="${p.id}" title="Remove parameter">&times;</button>
     </div>`).join('');
 
-  // Output model options: none + valid models, keeping a now-invalid/deleted
-  // selection visible & flagged rather than silently dropping it.
+  // Endpoint output may be a model OR raw JSON; a missing/deleted model stays
+  // visible and flagged rather than silently dropped.
   const modelOptions = [
     { value: '', label: '— none —' },
+    { value: 'json', label: 'JSON (dynamic)' },
     ...models.map(nm => ({ value: nm, label: nm })),
   ];
-  if (api.output.model && !models.includes(api.output.model)) {
+  if (api.output.model && api.output.model !== 'json' && !models.includes(api.output.model)) {
     modelOptions.push({ value: api.output.model, label: '⚠ ' + api.output.model });
   }
 
@@ -125,23 +200,23 @@ function renderApiCard(api) {
   });
   const outTypeDD = ddTrigger({
     value: api.output.type,
-    options: [{ value: 'single', label: 'Model' }, { value: 'list', label: 'List<Model>' }],
+    options: [{ value: 'single', label: 'Single' }, { value: 'list', label: 'List' }],
     data: { api: api.id, field: 'outType' },
   });
-  const outModelDD = ddTrigger({
-    value: api.output.model,
-    options: modelOptions,
-    data: { api: api.id, field: 'outModel' },
-  });
+  const outModelDD = ddTrigger({ value: api.output.model, options: modelOptions, data: { api: api.id, field: 'outModel' } });
 
   const u = fullUrl(api);
   return `
   <div class="api-card">
+    <div class="api-name-row">
+      <input class="api-name-input${nerr ? ' invalid' : ''}" data-apiname="${api.id}" value="${esc(api.name)}" spellcheck="false" placeholder="endpointName">
+      <span class="model-warn" data-apiwarn="${api.id}" title="${nerr ? esc(nerr) : ''}"${nerr ? '' : ' style="display:none"'}>&#9888;</span>
+      <button class="model-del" data-del-api="${api.id}" title="Delete endpoint">&times;</button>
+    </div>
     <div class="api-card-head">
       ${methodDD}
       <input class="api-version" data-api="${api.id}" data-field="version" value="${esc(api.version)}" spellcheck="false" placeholder="v1">
       <input class="api-route" data-api="${api.id}" data-field="route" value="${esc(api.route)}" spellcheck="false" placeholder="users/:id">
-      <button class="model-del" data-del-api="${api.id}" title="Delete endpoint">&times;</button>
     </div>
     <div class="api-url" data-url="${api.id}">${u ? esc(u) : '<span class="api-url-empty">set base URL &amp; route</span>'}</div>
 
@@ -168,9 +243,49 @@ function renderApiCard(api) {
       <div class="api-output">
         ${outTypeDD}
         ${outModelDD}
-        <span class="api-out-preview">${esc(outputStr(api))}</span>
+        <span class="api-out-preview">${esc(apiOutputStr(api))}</span>
       </div>
-      ${models.length === 0 ? `<div class="api-hint">No error-free models yet — create a valid model to use as output.</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderProviderCard(p) {
+  const models = validModelNames();
+  const perr = provNameError(p);
+
+  const provModelOptions = [
+    { value: '', label: '— none —' },
+    ...models.map(nm => ({ value: nm, label: nm })),
+  ];
+  if (p.output.model && !models.includes(p.output.model)) {
+    provModelOptions.push({ value: p.output.model, label: '⚠ ' + p.output.model });
+  }
+  const outTypeDD = ddTrigger({
+    value: p.output.type,
+    options: [{ value: 'single', label: 'Single' }, { value: 'list', label: 'List' }],
+    data: { prov: p.id, field: 'provOutType' },
+  });
+  const outModelDD = ddTrigger({ value: p.output.model, options: provModelOptions, data: { prov: p.id, field: 'provOutModel' } });
+
+  return `
+  <div class="provider-card">
+    <div class="provider-head">
+      <input class="model-name-input${perr ? ' invalid' : ''}" data-provname="${p.id}" value="${esc(p.name)}" spellcheck="false" placeholder="providerName">
+      <span class="model-warn" data-provwarn="${p.id}" title="${perr ? esc(perr) : ''}"${perr ? '' : ' style="display:none"'}>&#9888;</span>
+      <button class="model-del" data-del-prov="${p.id}" title="Delete provider">&times;</button>
+    </div>
+    <div class="provider-config">
+      <div class="provider-output">
+        <span class="provider-output-label">Output</span>
+        ${outTypeDD}
+        ${outModelDD}
+        <span class="api-out-preview">${esc(provOutputStr(p))}</span>
+      </div>
+      <button class="prop-add provider-add" data-add-api="${p.id}">+ Add endpoint</button>
+    </div>
+    <div class="provider-endpoints">
+      ${p.apis.map(a => renderEndpointCard(p, a)).join('')}
+      ${p.apis.length === 0 ? `<div class="api-hint" style="margin:2px 0 0">No endpoints yet.</div>` : ''}
     </div>
   </div>`;
 }
@@ -178,18 +293,20 @@ function renderApiCard(api) {
 export function renderApi() {
   const board = document.getElementById('api-board');
   if (!board) return;
+  const noModels = validModelNames().length === 0;
   board.innerHTML = `
     <div class="api-baseurl">
       <span class="api-baseurl-label">Base URL</span>
       <input class="api-baseurl-input" id="api-baseurl" value="${esc(state.apiBaseUrl)}" spellcheck="false" placeholder="https://api.example.com">
     </div>
     <div class="model-board-head">
-      <span class="model-board-title">Endpoints</span>
-      <button class="model-add-btn" id="api-new">+ New API</button>
+      <span class="model-board-title">Providers</span>
+      <button class="model-add-btn" id="provider-new">+ New Provider</button>
     </div>
-    <div class="api-cards">
-      ${state.apis.map(renderApiCard).join('')}
-      ${state.apis.length === 0 ? `<div class="model-empty">No endpoints yet — click “+ New API” to create one.</div>` : ''}
+    ${noModels ? `<div class="api-hint" style="margin-bottom:12px">No error-free models yet — create a valid model to use as an output.</div>` : ''}
+    <div class="provider-list">
+      ${state.providers.map(renderProviderCard).join('')}
+      ${state.providers.length === 0 ? `<div class="model-empty">No providers yet — click “+ New Provider” to create one.</div>` : ''}
     </div>`;
 }
 
@@ -199,18 +316,22 @@ export function initApi() {
 
   board.addEventListener('click', e => {
     const t = e.target;
-    if (t.id === 'api-new') return addApi();
+    if (t.id === 'provider-new') return addProvider();
+    if (t.dataset.delProv) return delProvider(t.dataset.delProv);
+    if (t.dataset.addApi) return addApi(getProvider(t.dataset.addApi));
+    if (t.dataset.delApi) return delApi(t.dataset.delApi);
     if (t.dataset.addH) return addHeader(getApi(t.dataset.addH));
     if (t.dataset.delH) return delHeader(getApi(t.dataset.api), t.dataset.delH);
     if (t.dataset.addP) return addParam(getApi(t.dataset.addP));
     if (t.dataset.delP) return delParam(getApi(t.dataset.api), t.dataset.delP);
-    if (t.dataset.delApi) return delApi(t.dataset.delApi);
   });
 
-  // Text edits: update state in place and refresh the URL preview, no re-render.
+  // Text edits: update state in place, refresh URL/name warnings, no re-render.
   board.addEventListener('input', e => {
     const t = e.target;
-    if (t.id === 'api-baseurl') { state.apiBaseUrl = t.value; state.apis.forEach(updateUrl); return; }
+    if (t.id === 'api-baseurl') { state.apiBaseUrl = t.value; state.providers.forEach(p => p.apis.forEach(updateUrl)); return; }
+    if (t.dataset.provname != null) { const p = getProvider(t.dataset.provname); if (p) { p.name = t.value; refreshProvWarns(); } return; }
+    if (t.dataset.apiname != null) { const f = findApi(t.dataset.apiname); if (f) { f.api.name = t.value; refreshApiWarns(f.provider); } return; }
     const api = getApi(t.dataset.api);
     if (!api) return;
     if (t.dataset.field === 'version') { api.version = t.value; updateUrl(api); }
@@ -228,9 +349,18 @@ export function initApi() {
   // Dropdowns re-render: method toggles the body section, output changes the preview.
   board.addEventListener('dd:change', e => {
     const t = e.target;
+    const v = e.detail.value;
+    if (t.dataset.prov != null) {
+      const p = getProvider(t.dataset.prov);
+      if (!p) return;
+      if (t.dataset.field === 'provOutType') p.output.type = v;
+      else if (t.dataset.field === 'provOutModel') p.output.model = v;
+      else return;
+      saveHistory();
+      return renderApi();
+    }
     const api = getApi(t.dataset.api);
     if (!api) return;
-    const v = e.detail.value;
     if (t.dataset.field === 'method') api.method = v;
     else if (t.dataset.field === 'outType') api.output.type = v;
     else if (t.dataset.field === 'outModel') api.output.model = v;
