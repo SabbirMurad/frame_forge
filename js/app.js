@@ -10,6 +10,7 @@ import { initModels, renderModels } from './models.js';
 import { initApi, renderApi } from './api.js';
 import { initColors, renderColors } from './colors.js';
 import { initTypography, renderTypography } from './typography.js';
+import { initMock, renderMock } from './mock.js';
 import { exportModelsCode } from './codegen.js';
 import { updateExportButton } from './validate.js';
 import { initDropdowns } from './dropdown.js';
@@ -22,6 +23,7 @@ initModels();
 initApi();
 initColors();
 initTypography();
+initMock();
 initDropdowns();
 
 // Add element menu
@@ -180,6 +182,7 @@ document.getElementById('sidebar-open')?.addEventListener('click', () => documen
 const modeTabs = document.querySelectorAll('.mode-tab');
 const designView = document.getElementById('design-view');
 const modelBoard = document.getElementById('model-board');
+const mockBoard = document.getElementById('mock-board');
 const apiBoard = document.getElementById('api-board');
 const colorBoard = document.getElementById('color-board');
 const colorPanel = document.getElementById('color-panel');
@@ -194,12 +197,14 @@ modeTabs.forEach(tab => {
     document.body.classList.toggle('design-mode', isDesign);
     designView.style.display = isDesign ? '' : 'none';
     modelBoard.style.display = mode === 'model' ? 'flex' : 'none';
+    mockBoard.style.display = mode === 'mock' ? 'flex' : 'none';
     apiBoard.style.display = mode === 'api' ? 'flex' : 'none';
     colorBoard.style.display = mode === 'color' ? 'flex' : 'none';
     colorPanel.style.display = mode === 'color' ? 'flex' : 'none';
     typoBoard.style.display = mode === 'typography' ? 'flex' : 'none';
     typoPanel.style.display = mode === 'typography' ? 'flex' : 'none';
     if (mode === 'model') renderModels();
+    if (mode === 'mock') renderMock();
     if (mode === 'api') renderApi();
     if (mode === 'color') renderColors();
     if (mode === 'typography') renderTypography();

@@ -141,6 +141,7 @@ function renderBoard() {
         const err = colorError(c);
         return `
       <div class="color-tile ${state.selectedColorId === c.id ? 'selected' : ''}" data-tile="${c.id}">
+        <button class="tile-del" data-tiledel="${c.id}" title="Delete color">&times;</button>
         <div class="color-swatch-lg" data-swatch="${c.id}" style="background:${swatchBg(c)}">${c.id === state.selectedColorId && c.fillType !== 'solid' ? renderGradOverlay(c) : ''}</div>
         <div class="color-tile-label">
           <span class="color-tile-name" data-tilename="${c.id}">${esc(c.name)}</span>
@@ -375,6 +376,7 @@ export function initColors() {
   if (board) {
     board.addEventListener('click', e => {
       if (e.target.id === 'color-new') return addColor();
+      if (e.target.dataset.tiledel) return deleteColor(e.target.dataset.tiledel);
       // Ignore clicks on the gradient overlay handles (handled by pointerdown drag)
       if (e.target.closest('[data-stophandle]') || e.target.closest('[data-gradrot]')) return;
       const tile = e.target.closest('.color-tile');

@@ -12,7 +12,7 @@
 .node.drop-target { outline: 2px dashed var(--accent) !important; outline-offset: -2px; }
 /* The element being dragged is dimmed so the drop-target outline beneath stays visible */
 .node.drag-source { opacity: 0.45 !important; }
-.node.container { background: #5b8af5; }
+.node.container { background: var(--accent); }
 .node.text-node { background: transparent; cursor: text; white-space: pre-wrap; word-break: break-word; }
 .node.text-node.editing { outline: 1px solid var(--accent); outline-offset: 1px; min-width: 8px; cursor: text; }
 

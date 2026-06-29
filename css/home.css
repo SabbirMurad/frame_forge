@@ -193,7 +193,8 @@
 .dd-trigger:hover { border-color: var(--border2); }
 .dd-trigger:focus { border-color: var(--accent); background: var(--surface3); }
 .dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dd-caret { color: var(--text3); font-size: 9px; line-height: 1; flex-shrink: 0; pointer-events: none; }
+.dd-caret { display: block; width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; filter: invert(58%); transition: filter 0.1s; }
+.dd-trigger:hover .dd-caret { filter: invert(85%); }
 
 #dd-menu {
   position: fixed; display: none; background: var(--glass-bg-strong);

@@ -104,6 +104,7 @@ function renderCard(t) {
         <span class="model-warn" data-tcardwarn="${t.id}" title="${err ? esc(err) : ''}"${err ? '' : ' style="display:none"'}>&#9888;</span>
       </span>
       <span class="typo-meta" data-tcardmeta="${t.id}">${esc(metaText(t))}</span>
+      <button class="model-del" data-tcarddel="${t.id}" title="Delete style">&times;</button>
     </div>
     <div class="typo-samples">
       <div class="typo-sample typo-sample-single" style="${css}">${esc(SAMPLE_LINE)}</div>
@@ -210,6 +211,7 @@ export function initTypography() {
   if (board) {
     board.addEventListener('click', e => {
       if (e.target.id === 'typo-new') return addTypo();
+      if (e.target.dataset.tcarddel) return deleteTypo(e.target.dataset.tcarddel);
       const card = e.target.closest('.typo-card');
       if (card && card.dataset.typo !== state.selectedTypoId) { state.selectedTypoId = card.dataset.typo; renderTypography(); }
     });

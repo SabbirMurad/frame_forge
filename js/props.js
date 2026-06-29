@@ -4,8 +4,144 @@ import { colorCss } from './colors.js';
 import { updateNodeEl, render } from './render.js';
 import { renderLayers } from './layers.js';
 import { ddTrigger } from './dropdown.js';
+import { saveHistory } from './history.js';
 
 const STROKE_STYLES = ['solid', 'dashed', 'dotted', 'double'];
+
+// Padding/Margin can show 2 combined inputs (Horizontal/Vertical) or 4 per-side
+// inputs. Transient UI preference (not per-node), toggled by the side icon.
+const boxExpanded = { pad: false, mar: false };
+const SIDES_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><rect x="5.5" y="5.5" width="5" height="5" rx="1"/></svg>`;
+// Plus icon for adding a shadow.
+const PLUS_ICON = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>`;
+
+// Figma-style spacing icons: a faint box with the relevant inner edge(s)
+// emphasised (h = left+right, v = top+bottom, and each single side).
+const boxIcon = (lines) => `<svg viewBox="0 0 16 16" width="18" height="18" fill="none">`
+  + `<rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.2"/>`
+  + lines.map(l => `<line x1="${l[0]}" y1="${l[1]}" x2="${l[2]}" y2="${l[3]}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>`).join('')
+  + `</svg>`;
+const BOX_ICONS = {
+  h: boxIcon([[4.5, 5, 4.5, 11], [11.5, 5, 11.5, 11]]),
+  v: boxIcon([[5, 4.5, 11, 4.5], [5, 11.5, 11, 11.5]]),
+  t: boxIcon([[5, 4.5, 11, 4.5]]),
+  b: boxIcon([[5, 11.5, 11, 11.5]]),
+  l: boxIcon([[4.5, 5, 4.5, 11]]),
+  r: boxIcon([[11.5, 5, 11.5, 11]]),
+};
+
+// Figma-style appearance icons: opacity = a half-filled circle; corner radius =
+// rounded corner brackets (one path per corner).
+const OPACITY_ICON = `<svg viewBox="0 0 16 16" width="18" height="18" fill="none"><circle cx="8" cy="8" r="5.3" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.7 A5.3 5.3 0 0 1 8 13.3 Z" fill="currentColor"/></svg>`;
+// Rotation = a circular arrow; flip H/V = mirrored triangles around a dashed axis.
+const ROTATION_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9a8 8 0 1 1-.6 5"/><path d="M4.5 4v5h5"/></svg>`;
+// Rotate by a quarter turn: clockwise (+90) and counter-clockwise (-90).
+const ROTATE_CW_ICON = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 9a8 8 0 1 0 .6 5"/><path d="M19.5 4v5h-5"/></svg>`;
+const ROTATE_CCW_ICON = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9a8 8 0 1 1-.6 5"/><path d="M4.5 4v5h5"/></svg>`;
+const FLIPH_ICON = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18" stroke-dasharray="2 2.5"/><path d="M9 7l-4.5 5 4.5 5z"/><path d="M15 7l4.5 5-4.5 5z"/></svg>`;
+const FLIPV_ICON = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18" stroke-dasharray="2 2.5"/><path d="M7 9l5-4.5 5 4.5z"/><path d="M7 15l5 4.5 5-4.5z"/></svg>`;
+const CORNER_PATH = {
+  tl: 'M3 7 L3 4.5 A1.5 1.5 0 0 1 4.5 3 L7 3',
+  tr: 'M9 3 L11.5 3 A1.5 1.5 0 0 1 13 4.5 L13 7',
+  br: 'M13 9 L13 11.5 A1.5 1.5 0 0 1 11.5 13 L9 13',
+  bl: 'M7 13 L4.5 13 A1.5 1.5 0 0 1 3 11.5 L3 9',
+};
+// Uniform radius: four corner brackets with space between them.
+const RADIUS_ICON = `<svg viewBox="0 0 16 16" width="18" height="18" fill="none">`
+  + ['tl', 'tr', 'br', 'bl'].map(c => `<path d="${CORNER_PATH[c]}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
+  + `</svg>`;
+// Per-corner: a faint box with the one corner emphasised.
+const cornerIcon = (c) => `<svg viewBox="0 0 16 16" width="18" height="18" fill="none">`
+  + `<rect x="3" y="3" width="10" height="10" rx="2" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.2"/>`
+  + `<path d="${CORNER_PATH[c]}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CORNER_ICONS = { tl: cornerIcon('tl'), tr: cornerIcon('tr'), br: cornerIcon('br'), bl: cornerIcon('bl') };
+const CORNER_TITLE = { tl: 'Top-left', tr: 'Top-right', br: 'Bottom-right', bl: 'Bottom-left' };
+
+// Uniform corner-radius field with a toggle to switch to independent corners.
+function radiusField(node) {
+  const on = node.radiusMode === 'corners';
+  const disabled = on || node.shape === 'circle';
+  return `<label class="input-affix sizemode" title="Corner radius">`
+    + `<span class="input-affix-label icon">${RADIUS_ICON}</span>`
+    + `<input class="prop-input bare" id="p-radius" type="number" value="${node.radius}" min="0" ${disabled ? 'disabled' : ''}>`
+    + `<button type="button" class="affix-toggle ${on ? 'active' : ''}" data-radius-toggle title="${on ? 'Uniform radius' : 'Independent corners'}">${SIDES_ICON}</button>`
+    + `</label>`;
+}
+
+// One per-corner radius input (shown when radiusMode === 'corners').
+function cornerField(node, c) {
+  const r = node.radii || { tl: 0, tr: 0, br: 0, bl: 0 };
+  return `<label class="input-affix" title="${CORNER_TITLE[c]}"><span class="input-affix-label icon">${CORNER_ICONS[c]}</span><input class="prop-input bare" id="p-rad-${c}" type="number" value="${r[c]}" min="0"></label>`;
+}
+
+// Markup for a Padding/Margin section. Collapsed → Horizontal (left+right) and
+// Vertical (top+bottom); expanded → Top/Right/Bottom/Left. `prefix` is 'pad'/'mar'.
+function boxSection(title, prefix, box) {
+  const expanded = boxExpanded[prefix];
+  const field = (icon, id, val, title) => `<label class="input-affix" title="${title}"><span class="input-affix-label icon">${BOX_ICONS[icon]}</span><input class="prop-input bare" id="p-${prefix}-${id}" type="number" value="${val}" min="0"></label>`;
+  const fields = expanded
+    ? field('t', 't', box.t, 'Top') + field('r', 'r', box.r, 'Right') + field('b', 'b', box.b, 'Bottom') + field('l', 'l', box.l, 'Left')
+    : field('h', 'h', box.l, 'Horizontal') + field('v', 'v', box.t, 'Vertical');
+  return `
+    <div class="prop-section">
+      <div class="prop-section-head">
+        <div class="prop-section-title">${title}</div>
+        <button class="box-toggle ${expanded ? 'active' : ''}" data-box-toggle="${prefix}" title="${expanded ? 'Combine to horizontal / vertical' : 'Edit each side'}">${SIDES_ICON}</button>
+      </div>
+      <div class="box-grid">${fields}</div>
+    </div>`;
+}
+
+const DEFAULT_SHADOW = { x: 0, y: 4, blur: 12, spread: 0, colorId: null, alpha: 0.25 };
+
+// Drop-shadow section (container/image). The "+" adds a shadow; each shadow has
+// its own × to remove it (multiple shadows stack as a CSS box-shadow list).
+function shadowSection(node) {
+  const list = node.shadows || [];
+  return `
+    <div class="prop-section">
+      <div class="prop-section-head">
+        <div class="prop-section-title">Shadow</div>
+        <button class="box-toggle" data-shadow-add title="Add shadow">${PLUS_ICON}</button>
+      </div>
+      ${list.map((s, i) => shadowItem(s, i)).join('')}
+    </div>`;
+}
+
+function shadowItem(s, i) {
+  const field = (label, key, val, min) => `<label class="input-affix" title="${esc(label)}"><span class="input-affix-label">${label[0]}</span><input class="prop-input bare" id="p-sh-${key}-${i}" type="number"${min ? ' min="0"' : ''} value="${val}"></label>`;
+  return `
+    <div class="shadow-item">
+      <div class="shadow-item-head">
+        <span class="shadow-item-title">Shadow ${i + 1}</span>
+        <button class="model-del" data-shadow-del="${i}" title="Remove shadow">&times;</button>
+      </div>
+      <div class="box-grid">
+        ${field('X offset', 'x', s.x)}${field('Y offset', 'y', s.y)}${field('Blur', 'blur', s.blur, true)}${field('Spread', 'spread', s.spread)}
+      </div>
+      <div class="color-pick-grid" style="margin:14px 0 8px">
+        <button class="color-pick none ${!s.colorId ? 'selected' : ''}" data-shadowcolor="" data-shidx="${i}" title="Black (default)"></button>
+        ${state.colors.filter(c => c.fillType === 'solid').map(c => `<button class="color-pick ${s.colorId === c.id ? 'selected' : ''}" data-shadowcolor="${c.id}" data-shidx="${i}" title="${esc(c.name)}" style="background:${colorCss(c)}"></button>`).join('')}
+      </div>
+      <div class="prop-row">
+        <span class="prop-label" style="width:auto">Opacity</span>
+        <input class="prop-input" id="p-sh-alpha-${i}" type="number" min="0" max="100" value="${Math.round((s.alpha == null ? 0.25 : s.alpha) * 100)}" style="width:56px;flex:0 0 auto">
+      </div>
+    </div>`;
+}
+
+// Wire a Padding/Margin section's inputs in whichever mode it's currently in.
+function bindBox(prefix, box, node) {
+  if (boxExpanded[prefix]) {
+    bindPropNum(`p-${prefix}-t`, v => { box.t = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum(`p-${prefix}-r`, v => { box.r = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum(`p-${prefix}-b`, v => { box.b = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum(`p-${prefix}-l`, v => { box.l = Math.max(0, v); updateNodeEl(node); });
+  } else {
+    bindPropNum(`p-${prefix}-h`, v => { box.l = box.r = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum(`p-${prefix}-v`, v => { box.t = box.b = Math.max(0, v); updateNodeEl(node); });
+  }
+}
 const FIT_OPTIONS = [
   { value: 'cover', label: 'cover' }, { value: 'contain', label: 'contain' },
   { value: 'fill', label: 'fill' }, { value: 'fitWidth', label: 'fit width' },
@@ -21,8 +157,67 @@ propsFields.addEventListener('dd:change', e => {
   switch (e.target.dataset.pp) {
     case 'fit': node.fit = v; updateNodeEl(node); break;
     case 'sstyle': node.strokeStyle = v; updateNodeEl(node); renderProps(); break;
+    case 'wmode': setSizeMode(node, 'w', v); break;
+    case 'hmode': setSizeMode(node, 'h', v); break;
   }
 });
+
+// Node types whose width/height can be Fixed / Fill / Hug.
+const SIZE_MODE_TYPES = ['container', 'image'];
+
+// Apply a new sizing mode for one axis. Leaving a fluid mode for 'fixed' freezes
+// the current rendered size, so the box stays put. A full re-render is needed so
+// parents that hug / children that fill recompute, and the dropdown's option
+// availability (which depends on parent/child modes) refreshes.
+function setSizeMode(node, axis, mode) {
+  const el = document.getElementById('node-' + node.id);
+  if (el) { if (axis === 'w') node.w = el.offsetWidth; else node.h = el.offsetHeight; }
+  if (axis === 'w') node.wMode = mode; else node.hMode = mode;
+  render();
+  saveHistory();
+}
+
+// The three sizing options for one axis, with Fill/Hug disabled (greyed, with a
+// reason) when they'd be invalid:
+//   Fill — needs a parent, and that parent must not be hugging this same axis.
+//   Hug  — needs a child, and no child may be filling this same axis.
+function sizeModeOptions(node, axis) {
+  const key = axis === 'w' ? 'wMode' : 'hMode';
+  const dim = axis === 'w' ? 'width' : 'height';
+  const parent = node.parentId ? getNode(node.parentId) : null;
+  const parentHugs = parent && parent[key] === 'hug';
+  const fillOk = !!parent && !parentHugs;
+
+  const kids = (node.children || []).map(getNode).filter(Boolean);
+  const kidFills = kids.some(c => c[key] === 'fill');
+  const hugOk = kids.length > 0 && !kidFills;
+
+  return [
+    { value: 'fixed', label: 'Fixed' },
+    { value: 'fill', label: 'Fill container', disabled: !fillOk,
+      title: !parent ? 'Needs a parent' : (parentHugs ? `Parent is hugging its ${dim}` : '') },
+    { value: 'hug', label: 'Hug children', disabled: !hugOk,
+      title: kids.length === 0 ? 'No children to hug' : (kidFills ? `A child is filling this ${dim}` : '') },
+  ];
+}
+
+const SIZE_MODE_LABEL = { fill: 'Fill container', hug: 'Hug children' };
+
+// One W/H field for a sizable node: label + value + a caret that opens the mode
+// menu. Fixed → an editable number; Fill/Hug → the mode name (input disabled).
+function sizeField(node, axis) {
+  const mode = (axis === 'w' ? node.wMode : node.hMode) || 'fixed';
+  const id = axis === 'w' ? 'p-w' : 'p-h';
+  const px = Math.round(axis === 'w' ? node.w : node.h);
+  const value = mode === 'fixed'
+    ? `<input class="prop-input bare" id="${id}" type="number" value="${px}">`
+    : `<span class="affix-modetext">${SIZE_MODE_LABEL[mode]}</span>`;
+  // A bare .dd-trigger (icon only) — keeps the shared dropdown wiring but shows
+  // the arrow-down.svg glyph instead of the tiny text caret.
+  const opts = esc(JSON.stringify(sizeModeOptions(node, axis)));
+  const caret = `<button type="button" class="dd-trigger affix-caret" data-dd-value="${esc(mode)}" data-dd-options="${opts}" data-pp="${axis === 'w' ? 'wmode' : 'hmode'}"><img class="affix-caret-icon" src="icons/arrow-down.svg" alt=""></button>`;
+  return `<label class="input-affix sizemode"><span class="input-affix-label">${axis === 'w' ? 'W' : 'H'}</span>${value}${caret}</label>`;
+}
 
 export function renderProps() {
   if (state.selected.size === 0) {
@@ -45,90 +240,69 @@ export function renderProps() {
       </div>
       ${node.parentId ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">in <span style="color:var(--accent)">${esc(getNode(node.parentId)?.name || '?')}</span></div>` : ''}
     </div>
-    <div class="prop-section">
-      <div class="prop-section-title">Layout</div>
-      <div class="prop-row">
-        <span class="prop-label">X</span>
-        <input class="prop-input" id="p-x" type="number" value="${Math.round(node.x)}">
-        <span class="prop-label">Y</span>
-        <input class="prop-input" id="p-y" type="number" value="${Math.round(node.y)}">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">W</span>
-        <input class="prop-input" id="p-w" type="number" value="${Math.round(node.w)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}>
-        <span class="prop-label">H</span>
-        <input class="prop-input" id="p-h" type="number" value="${Math.round(node.h)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}>
-      </div>
-      ${node.type !== 'text' ? `
-      <div class="prop-row">
-        <span class="prop-label">R</span>
-        <input class="prop-input" id="p-radius" type="number" value="${node.radius}" min="0" ${node.shape === 'circle' ? 'disabled title="Radius is controlled by the circle shape"' : ''}>
-        <span class="prop-label">%</span>
-        <input class="prop-input" id="p-opacity" type="number" value="${Math.round(node.opacity * 100)}" min="0" max="100">
-      </div>` : `
-      <div class="prop-row">
-        <span class="prop-label">%</span>
-        <input class="prop-input" id="p-opacity" type="number" value="${Math.round(node.opacity * 100)}" min="0" max="100">
-      </div>`}
-    </div>
     ${node.type === 'container' || node.type === 'row' || node.type === 'column' ? `
     <div class="prop-section">
       <div class="prop-section-title">Alignment</div>
       <div class="prop-row">
-        <span class="prop-label-wide">Horiz</span>
-        <div class="align-group">
-          <button class="align-btn ${node.alignment.h === 'left' ? 'active' : ''}" data-ah="left" title="Left"><img src="icons/alignment/left.svg" alt="Left"></button>
-          <button class="align-btn ${node.alignment.h === 'center' ? 'active' : ''}" data-ah="center" title="Center"><img src="icons/alignment/center-horizontal.svg" alt="Center"></button>
-          <button class="align-btn ${node.alignment.h === 'right' ? 'active' : ''}" data-ah="right" title="Right"><img src="icons/alignment/right.svg" alt="Right"></button>
-        </div>
-      </div>
-      <div class="prop-row">
-        <span class="prop-label-wide">Vert</span>
-        <div class="align-group">
-          <button class="align-btn ${node.alignment.v === 'top' ? 'active' : ''}" data-av="top" title="Top"><img src="icons/alignment/top.svg" alt="Top"></button>
-          <button class="align-btn ${node.alignment.v === 'center' ? 'active' : ''}" data-av="center" title="Center"><img src="icons/alignment/center-vertical.svg" alt="Center"></button>
-          <button class="align-btn ${node.alignment.v === 'bottom' ? 'active' : ''}" data-av="bottom" title="Bottom"><img src="icons/alignment/bottom.svg" alt="Bottom"></button>
+        <div class="align-row">
+          <div class="align-group">
+            <button class="align-btn ${node.alignment.h === 'left' ? 'active' : ''}" data-ah="left" title="Left"><img src="icons/alignment/left.svg" alt="Left"></button>
+            <button class="align-btn ${node.alignment.h === 'center' ? 'active' : ''}" data-ah="center" title="Center"><img src="icons/alignment/center-horizontal.svg" alt="Center"></button>
+            <button class="align-btn ${node.alignment.h === 'right' ? 'active' : ''}" data-ah="right" title="Right"><img src="icons/alignment/right.svg" alt="Right"></button>
+          </div>
+          <div class="align-group">
+            <button class="align-btn ${node.alignment.v === 'top' ? 'active' : ''}" data-av="top" title="Top"><img src="icons/alignment/top.svg" alt="Top"></button>
+            <button class="align-btn ${node.alignment.v === 'center' ? 'active' : ''}" data-av="center" title="Center"><img src="icons/alignment/center-vertical.svg" alt="Center"></button>
+            <button class="align-btn ${node.alignment.v === 'bottom' ? 'active' : ''}" data-av="bottom" title="Bottom"><img src="icons/alignment/bottom.svg" alt="Bottom"></button>
+          </div>
         </div>
       </div>
     </div>` : ''}
+    <div class="prop-section">
+      <div class="prop-section-title">Position</div>
+      <div class="prop-row affix-row">
+        <label class="input-affix"><span class="input-affix-label">X</span><input class="prop-input bare" id="p-x" type="number" value="${Math.round(node.x)}"></label>
+        <label class="input-affix"><span class="input-affix-label">Y</span><input class="prop-input bare" id="p-y" type="number" value="${Math.round(node.y)}"></label>
+      </div>
+    </div>
+    <div class="prop-section">
+      <div class="prop-section-title">Size</div>
+      ${SIZE_MODE_TYPES.includes(node.type) ? `
+      <div class="prop-row affix-row">
+        ${sizeField(node, 'w')}
+        ${sizeField(node, 'h')}
+      </div>` : `
+      <div class="prop-row affix-row">
+        <label class="input-affix ${node.type === 'frame' || (node.type === 'text' && node.autoSize) ? 'disabled' : ''}"><span class="input-affix-label">W</span><input class="prop-input bare" id="p-w" type="number" value="${Math.round(node.w)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}></label>
+        <label class="input-affix ${node.type === 'frame' || (node.type === 'text' && node.autoSize) ? 'disabled' : ''}"><span class="input-affix-label">H</span><input class="prop-input bare" id="p-h" type="number" value="${Math.round(node.h)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}></label>
+      </div>`}
+    </div>
+    ${node.type === 'container' || node.type === 'frame' ? boxSection('Padding', 'pad', node.padding) : ''}
+    ${node.type === 'container' ? boxSection('Margin', 'mar', node.margin) : ''}
+    <div class="prop-section">
+      <div class="prop-section-title">Appearance</div>
+      <div class="prop-row affix-row">
+        <label class="input-affix" title="Opacity"><span class="input-affix-label icon">${OPACITY_ICON}</span><input class="prop-input bare" id="p-opacity" type="number" value="${Math.round(node.opacity * 100)}" min="0" max="100"></label>
+        ${node.type !== 'text' ? radiusField(node) : ''}
+      </div>
+      ${node.type !== 'text' && node.radiusMode === 'corners' && node.shape !== 'circle' ? `
+      <div class="box-grid" style="margin-top:6px">
+        ${cornerField(node, 'tl')}${cornerField(node, 'tr')}${cornerField(node, 'br')}${cornerField(node, 'bl')}
+      </div>` : ''}
+      <div class="prop-row" style="margin-top:6px">
+        <label class="input-affix" style="flex:1" title="Rotation"><span class="input-affix-label icon">${ROTATION_ICON}</span><input class="prop-input bare" id="p-rotation" type="number" value="${Math.round(node.rotation || 0)}"></label>
+        <button type="button" class="flip-btn" data-rotate="90" title="Rotate +90°">${ROTATE_CW_ICON}</button>
+        <button type="button" class="flip-btn" data-rotate="-90" title="Rotate −90°">${ROTATE_CCW_ICON}</button>
+        <button type="button" class="flip-btn ${node.flipH ? 'active' : ''}" style="margin-left:12px" data-flip="h" title="Flip horizontal">${FLIPH_ICON}</button>
+        <button type="button" class="flip-btn ${node.flipV ? 'active' : ''}" data-flip="v" title="Flip vertical">${FLIPV_ICON}</button>
+      </div>
+    </div>
     ${node.type === 'container' ? `
     <div class="prop-section">
       <div class="prop-section-title">Shape</div>
       <div class="shape-toggle">
         <button class="shape-btn ${node.shape !== 'circle' ? 'active' : ''}" data-shape="rect">Rectangle</button>
         <button class="shape-btn ${node.shape === 'circle' ? 'active' : ''}" data-shape="circle">Circle</button>
-      </div>
-    </div>` : ''}
-    ${node.type === 'container' || node.type === 'frame' ? `
-    <div class="prop-section">
-      <div class="prop-section-title">Padding</div>
-      <div class="prop-row">
-        <span class="prop-label" title="Top">T</span>
-        <input class="prop-input" id="p-pad-t" type="number" value="${node.padding.t}" min="0">
-        <span class="prop-label" title="Left">L</span>
-        <input class="prop-input" id="p-pad-l" type="number" value="${node.padding.l}" min="0">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label" title="Bottom">B</span>
-        <input class="prop-input" id="p-pad-b" type="number" value="${node.padding.b}" min="0">
-        <span class="prop-label" title="Right">R</span>
-        <input class="prop-input" id="p-pad-r" type="number" value="${node.padding.r}" min="0">
-      </div>
-    </div>` : ''}
-    ${node.type === 'container' ? `
-    <div class="prop-section">
-      <div class="prop-section-title">Margin</div>
-      <div class="prop-row">
-        <span class="prop-label" title="Top">T</span>
-        <input class="prop-input" id="p-mar-t" type="number" value="${node.margin.t}" min="0">
-        <span class="prop-label" title="Left">L</span>
-        <input class="prop-input" id="p-mar-l" type="number" value="${node.margin.l}" min="0">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label" title="Bottom">B</span>
-        <input class="prop-input" id="p-mar-b" type="number" value="${node.margin.b}" min="0">
-        <span class="prop-label" title="Right">R</span>
-        <input class="prop-input" id="p-mar-r" type="number" value="${node.margin.r}" min="0">
       </div>
     </div>` : ''}
     ${node.type === 'container' ? `
@@ -191,6 +365,7 @@ export function renderProps() {
         ${styleDropdown(node)}
       </div>
     </div>` : ''}
+    ${node.type === 'container' || node.type === 'image' ? shadowSection(node) : ''}
     ${node.type === 'text' ? `
     <div class="prop-section">
       <div class="prop-section-title">Text</div>
@@ -219,9 +394,65 @@ export function renderProps() {
     bindPropNum('p-h', v => { node.h = Math.max(1, v); updateNodeEl(node); });
   }
   bindPropNum('p-opacity', v => { node.opacity = Math.min(1, Math.max(0, v / 100)); updateNodeEl(node); });
+  bindPropNum('p-rotation', v => { node.rotation = v; updateNodeEl(node); });
+  document.querySelectorAll('[data-rotate]').forEach(btn => btn.addEventListener('click', () => {
+    node.rotation = (((node.rotation || 0) + Number(btn.dataset.rotate)) % 360 + 360) % 360;
+    updateNodeEl(node); renderProps(); saveHistory();
+  }));
+  document.querySelectorAll('[data-flip]').forEach(btn => btn.addEventListener('click', () => {
+    if (btn.dataset.flip === 'h') node.flipH = !node.flipH; else node.flipV = !node.flipV;
+    updateNodeEl(node); renderProps(); saveHistory();
+  }));
 
   if (node.type !== 'text' && node.shape !== 'circle') {
     bindPropNum('p-radius', v => { node.radius = Math.max(0, v); updateNodeEl(node); });
+    // Per-corner radius inputs (only present in independent-corners mode).
+    ['tl', 'tr', 'br', 'bl'].forEach(c => bindPropNum('p-rad-' + c, v => {
+      if (!node.radii) node.radii = { tl: 0, tr: 0, br: 0, bl: 0 };
+      node.radii[c] = Math.max(0, v); updateNodeEl(node);
+    }));
+    // Toggle uniform ⇄ independent corners. Entering corner mode seeds all four
+    // corners from the current uniform radius so the shape doesn't jump.
+    const radToggle = document.querySelector('[data-radius-toggle]');
+    if (radToggle) radToggle.addEventListener('click', () => {
+      if (node.radiusMode === 'corners') {
+        node.radiusMode = 'uniform';
+      } else {
+        node.radii = { tl: node.radius, tr: node.radius, br: node.radius, bl: node.radius };
+        node.radiusMode = 'corners';
+      }
+      // Full render so the corner drag-handles on the canvas appear/disappear
+      // with the mode (updateNodeEl alone won't rebuild them). render() also
+      // refreshes the properties panel.
+      render();
+      saveHistory();
+    });
+  }
+
+  if (node.type === 'container' || node.type === 'image') {
+    if (!node.shadows) node.shadows = [];
+    const addBtn = document.querySelector('[data-shadow-add]');
+    if (addBtn) addBtn.addEventListener('click', () => {
+      node.shadows.push({ ...DEFAULT_SHADOW });
+      updateNodeEl(node); renderProps(); saveHistory();
+    });
+    document.querySelectorAll('[data-shadow-del]').forEach(btn => btn.addEventListener('click', () => {
+      node.shadows.splice(Number(btn.dataset.shadowDel), 1);
+      updateNodeEl(node); renderProps(); saveHistory();
+    }));
+    node.shadows.forEach((s, i) => {
+      bindPropNum(`p-sh-x-${i}`, v => { s.x = v; updateNodeEl(node); });
+      bindPropNum(`p-sh-y-${i}`, v => { s.y = v; updateNodeEl(node); });
+      bindPropNum(`p-sh-blur-${i}`, v => { s.blur = Math.max(0, v); updateNodeEl(node); });
+      bindPropNum(`p-sh-spread-${i}`, v => { s.spread = v; updateNodeEl(node); });
+      bindPropNum(`p-sh-alpha-${i}`, v => { s.alpha = Math.min(1, Math.max(0, v / 100)); updateNodeEl(node); });
+    });
+    document.querySelectorAll('[data-shadowcolor]').forEach(btn => btn.addEventListener('click', () => {
+      const s = node.shadows[Number(btn.dataset.shidx)];
+      if (!s) return;
+      s.colorId = btn.dataset.shadowcolor || null;
+      updateNodeEl(node); renderProps(); saveHistory();
+    }));
   }
 
   if (node.type === 'container') {
@@ -235,17 +466,18 @@ export function renderProps() {
   }
 
   if (node.type === 'container' || node.type === 'frame') {
-    bindPropNum('p-pad-t', v => { node.padding.t = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-pad-r', v => { node.padding.r = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-pad-b', v => { node.padding.b = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-pad-l', v => { node.padding.l = Math.max(0, v); updateNodeEl(node); });
+    bindBox('pad', node.padding, node);
+    // One handler covers every side-toggle currently in the panel (padding + margin).
+    document.querySelectorAll('[data-box-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        boxExpanded[btn.dataset.boxToggle] = !boxExpanded[btn.dataset.boxToggle];
+        renderProps();
+      });
+    });
   }
 
   if (node.type === 'container') {
-    bindPropNum('p-mar-t', v => { node.margin.t = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-mar-r', v => { node.margin.r = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-mar-b', v => { node.margin.b = Math.max(0, v); updateNodeEl(node); });
-    bindPropNum('p-mar-l', v => { node.margin.l = Math.max(0, v); updateNodeEl(node); });
+    bindBox('mar', node.margin, node);
 
     document.querySelectorAll('[data-scroll]').forEach(btn => {
       btn.addEventListener('click', () => {

@@ -16,22 +16,13 @@
   color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: all 0.1s; font-size: 17px; position: relative;
 }
-.tool-btn:hover { background: var(--surface2); color: var(--text); }
-.tool-btn.active { background: var(--surface3); color: var(--text); }
+.tool-btn:hover { background: var(--surface2); }
+.tool-btn.active { background: var(--accent); }
 .tool-btn img {
   width: 18px; height: 18px;
   pointer-events: none;
-  /* Black SVGs → #999 gray (default state) */
-  filter: invert(60%);
-  transition: filter 0.1s;
-}
-.tool-btn:hover img {
-  /* Black SVGs → #e8e8e8 light (hover state) */
-  filter: invert(91%);
-}
-.tool-btn.active img {
-  /* Black SVGs → light (active state, matching the sidebar tabs) */
-  filter: invert(91%);
+  /* Any SVG colour → pure white (brightness(0) blacks it out, invert(1) whitens) */
+  filter: brightness(0) invert(1);
 }
 .tool-btn[data-tooltip]:hover::after {
   content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
@@ -100,7 +91,7 @@ body:not(.design-mode) #layers-panel { bottom: auto; max-height: calc(100vh - 64
 .nav-icon-btn.has-error img { filter: invert(36%) sepia(73%) saturate(2400%) hue-rotate(338deg) brightness(95%); }
 
 /* Profile (avatar + name/email) — sits above the project title row */
-#profile { display: flex; align-items: center; gap: 10px; padding: 12px 12px 11px; border-bottom: 1px solid var(--border); }
+#profile { display: flex; align-items: center; gap: 10px; padding: 11px 12px 12px; border-top: 1px solid var(--border); }
 #profile-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: var(--surface3); }
 #profile-info { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 #profile-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -124,7 +115,7 @@ body:not(.design-mode) #layers-panel { bottom: auto; max-height: calc(100vh - 64
 /* Collapsed sidebar */
 body.sidebar-collapsed #layers-panel { display: none; }
 #sidebar-open {
-  display: none; position: fixed; top: 12px; left: 12px; z-index: 150;
+  display: none; position: fixed; top: 36px; left: 36px; z-index: 150;
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--glass-border); border-radius: 10px;
@@ -134,15 +125,31 @@ body.sidebar-collapsed #layers-panel { display: none; }
 #sidebar-open:hover { color: var(--text); }
 body.sidebar-collapsed #sidebar-open { display: block; }
 
+/* Panel open/close icons (dark-stroke SVGs tinted for the dark theme). */
+#sidebar-toggle img, #sidebar-open img {
+  display: block; width: 18px; height: 18px; filter: invert(58%); transition: filter 0.1s;
+}
+#sidebar-toggle:hover img, #sidebar-open:hover img { filter: invert(90%); }
+
 /* Mode tabs (Design / Model / API) — stacked vertically */
-#mode-tabs { display: flex; flex-direction: column; gap: 4px; padding: 8px; flex-shrink: 0; }
+#mode-tabs { display: flex; flex-direction: column; gap: 2px; padding: 8px; flex-shrink: 0; }
 .mode-tab {
-  width: 100%; text-align: left; padding: 8px 12px; background: none; border: 1px solid transparent;
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 8px 12px; background: none; border: 1px solid transparent;
   border-radius: 8px; color: var(--text3); font-family: var(--sans);
   font-size: 13px; cursor: pointer; transition: color 0.1s, background 0.1s, border-color 0.1s;
 }
+.mode-tab-icon { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; }
+.mode-tab-icon svg { width: 18px; height: 18px; }
+.mode-tab-icon svg text { font-family: var(--sans); font-weight: 700; }
+.mode-tab-label { flex: 1; min-width: 0; }
 .mode-tab:hover { color: var(--text); background: var(--surface2); }
 .mode-tab.active { color: var(--text); background: var(--surface3); }
+.mode-tab.active .mode-tab-icon { color: var(--accent); }
+/* Active indicator dot on the right edge of the row. */
+.mode-tab.active::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+}
 #design-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
 /* ───────── Modal (share project) ───────── */
@@ -213,9 +220,14 @@ body.sidebar-collapsed #sidebar-open { display: block; }
   display: flex; flex-direction: column; overflow: hidden; z-index: 70;
 }
 #props-content { flex: 1; overflow-y: auto; padding: 8px 0; }
-.prop-section { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.prop-section { padding: 13px 12px; position: relative; }
+.prop-section:not(:last-child)::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 0;
+  height: 1px; background: var(--border);
+}
 .prop-section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
 .prop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.prop-row.affix-row { gap: 16px; }
 
 .prop-column {
   display: flex;
@@ -248,6 +260,51 @@ input[type=number] {
 .prop-input:focus { border-color: var(--accent); }
 .prop-input.invalid { border-color: var(--red); }
 .prop-input:hover:not(:focus) { border-color: var(--border2); }
+
+/* Figma-style field: the label letter sits inside the input box, in front of the value. */
+.input-affix {
+  display: flex; align-items: center; flex: 1; min-width: 0; gap: 9px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
+  padding-left: 8px; transition: border-color 0.15s;
+}
+.input-affix:hover:not(:focus-within) { border-color: var(--border2); }
+.input-affix:focus-within { border-color: var(--accent); }
+.input-affix-label { font-size: 12px; color: var(--text3); font-family: var(--mono); flex-shrink: 0; pointer-events: none; }
+.input-affix.disabled { opacity: 0.6; }
+.prop-input.bare { border: none; background: transparent; border-radius: 0; padding: 4px 7px 4px 0; }
+.prop-input.bare:focus, .prop-input.bare:hover:not(:focus) { border: none; }
+
+/* Size field with an integrated mode caret (Fixed / Fill / Hug). */
+.input-affix.sizemode { gap: 6px; padding-right: 0; }
+.affix-modetext {
+  flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--text2);
+  padding: 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dd-trigger.affix-caret {
+  flex: 0 0 auto; width: auto; min-width: 0; border: none; background: transparent;
+  padding: 0 5px 0 0; height: auto; display: flex; align-items: center;
+}
+.dd-trigger.affix-caret:hover { border: none; }
+.affix-caret-icon { width: 16px; height: 16px; filter: invert(58%); transition: filter 0.1s; pointer-events: none; }
+.dd-trigger.affix-caret:hover .affix-caret-icon { filter: invert(85%); }
+
+/* Toggle inside a field (e.g. radius uniform ⇄ independent corners). */
+.affix-toggle {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; cursor: pointer; padding: 0 5px 0 2px;
+  color: var(--text3); transition: color 0.1s;
+}
+.affix-toggle:hover { color: var(--text); }
+.affix-toggle.active { color: var(--accent); }
+
+/* Flip horizontal / vertical buttons (Appearance section). */
+.flip-btn {
+  flex: 0 0 auto; width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); cursor: pointer; padding: 0; color: var(--text2);
+  display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+}
+.flip-btn:hover { border-color: var(--border2); color: var(--text); }
+.flip-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
 .color-swatch {
   width: 26px; height: 26px; border-radius: 5px; border: 1px solid var(--border2);
   cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
@@ -319,7 +376,8 @@ input[type=number] {
 }
 .dd-trigger:hover { border-color: var(--border2); }
 .dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dd-caret { color: var(--text3); font-size: 9px; line-height: 1; flex-shrink: 0; pointer-events: none; }
+.dd-caret { display: block; width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; filter: invert(58%); transition: filter 0.1s; }
+.dd-trigger:hover .dd-caret { filter: invert(85%); }
 
 /* Variant: fills its row like a .prop-input (Properties panel) */
 .dd-trigger.dd-block { flex: 1; width: 100%; font-size: 13px; padding: 4px 7px; }
@@ -349,6 +407,8 @@ input[type=number] {
 }
 .dd-item:hover { background: var(--surface3); }
 .dd-item.active { color: var(--accent); }
+.dd-item.disabled { color: var(--text3); opacity: 0.5; cursor: not-allowed; }
+.dd-item.disabled:hover { background: transparent; }
 .dd-item.method-GET.active, .dd-item.method-POST.active, .dd-item.method-PUT.active,
 .dd-item.method-PATCH.active, .dd-item.method-DELETE.active { background: var(--surface3); }
 
@@ -389,10 +449,10 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 .typo-card:hover { border-color: var(--border2); }
 .typo-card.selected { border-color: var(--accent); }
 .typo-card-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
-.typo-name-wrap { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.typo-name-wrap { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .typo-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .typo-meta { font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: right; }
 .typo-samples { display: flex; flex-direction: column; gap: 10px; }
@@ -400,10 +460,21 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 .typo-sample-single { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .color-grid { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; align-content: flex-start; }
 .color-tile {
+  position: relative;
   display: flex; flex-direction: column; gap: 8px; align-items: center; cursor: pointer;
   padding: 8px; border-radius: 14px; border: 1px solid transparent; transition: all 0.1s;
 }
 .color-tile:hover { background: var(--surface2); }
+/* Delete button on a color tile (revealed on hover). */
+.tile-del {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; background: var(--glass-bg-strong); color: var(--text2);
+  font-size: 16px; line-height: 1; cursor: pointer; opacity: 0;
+  transition: opacity 0.1s, color 0.1s, background 0.1s;
+}
+.color-tile:hover .tile-del { opacity: 1; }
+.tile-del:hover { color: var(--red); background: var(--surface3); }
 .color-tile.selected { border-color: var(--accent); }
 .color-swatch-lg {
   width: 100px; height: 100px; border-radius: 12px; flex-shrink: 0;
@@ -458,9 +529,30 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 .cpick-a { width: 54px; flex-shrink: 0; text-align: center; }
 
 /* Alignment icon buttons (frame/container) */
+.prop-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.prop-section-head .prop-section-title { margin-bottom: 0; }
+.box-toggle {
+  display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: 5px; border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); cursor: pointer; padding: 0; transition: all 0.1s;
+}
+.box-toggle:hover { border-color: var(--border2); color: var(--text); }
+.box-toggle.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+
+/* Drop-shadow items (each removable, multiple allowed). */
+.shadow-item { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.shadow-item:first-child { margin-top: 4px; }
+.shadow-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.shadow-item-title { font-size: 11px; color: var(--text2); }
+
+.box-grid { display: flex; gap: 6px; }
+.box-grid .input-affix { gap: 5px; padding-left: 4px; }
+.input-affix-label.icon { display: flex; align-items: center; color: var(--text2); }
+
+.align-row { display: flex; gap: 16px; flex: 1; }
 .align-group { display: flex; gap: 4px; flex: 1; }
 .align-btn {
-  flex: 1; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+  flex: 1; max-width: 40px; height: 30px; border-radius: 6px; border: 1px solid var(--border);
   background: var(--surface2); cursor: pointer; padding: 0;
   display: flex; align-items: center; justify-content: center; transition: all 0.1s;
 }
@@ -481,7 +573,7 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 /* Color picker swatches in the properties panel (frame/container) */
 .color-pick-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .color-pick {
-  width: 40px; height: 40px; border-radius: 8px; border: none;
+  width: 36px; height: 36px; border-radius: 8px; border: none;
   cursor: pointer; padding: 0; position: relative; transition: transform 0.1s;
 }
 .color-pick:hover { transform: scale(1.08); }
@@ -504,7 +596,7 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 .typo-pick.selected { border-color: var(--accent); color: var(--accent); background: var(--surface3); }
 
 /* ───────── Model board (Model tab) ───────── */
-#model-board {
+#model-board, #mock-board {
   position: absolute; inset: 0; z-index: 30; display: none; flex-direction: column;
   background:
     radial-gradient(820px 460px at 50% -4%, rgba(170,178,194,0.12), transparent 60%),
@@ -513,6 +605,7 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
   overflow: auto; padding: 36px 20px 20px calc(var(--panel-w) + 52px);
 }
 body.sidebar-collapsed #model-board,
+body.sidebar-collapsed #mock-board,
 body.sidebar-collapsed #api-board { padding-left: 20px; }
 .model-section { margin-bottom: 32px; }
 .model-board-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -525,13 +618,55 @@ body.sidebar-collapsed #api-board { padding-left: 20px; }
 .model-empty { color: var(--text3); font-size: 13px; padding: 20px 4px; }
 
 .model-cards { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; align-content: flex-start; }
-.model-card {
+.model-card, .mock-card {
   width: max-content; min-width: 260px; max-width: 90vw;
   background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border: 1px solid var(--glass-border);
   border-radius: 12px; overflow: hidden; box-shadow: var(--glass-shadow), var(--glass-highlight);
 }
+.mock-card { width: 380px; min-width: 380px; }
+.mock-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
+.mock-ctrl-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text3); }
+.mock-controls .dd-trigger { flex: 1; min-width: 110px; }
+.mock-kind { flex: 0 0 auto; }
+.mock-json-wrap { padding: 10px; }
+.mock-json-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+.mock-btn {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer;
+  border-radius: 6px; padding: 5px 10px; font-family: var(--sans); font-size: 12px; transition: all 0.1s;
+}
+.mock-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+/* Structured value editor — looks like Dart code, but only values are inputs. */
+.mock-editor {
+  height: 300px; overflow: auto; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; color: var(--text2);
+  font-family: var(--mono); font-size: 12px; line-height: 1.9;
+}
+.mock-nest { padding-left: 16px; }
+.mock-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mock-key { color: var(--text3); }
+.mock-ctor { color: var(--accent); }
+.mock-punct { color: var(--text3); }
+.mock-val {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-family: var(--mono); font-size: 12px; padding: 1px 6px; outline: none;
+  transition: border-color 0.1s;
+}
+.mock-val:focus { border-color: var(--accent); }
+.mock-val-str { width: 190px; max-width: 100%; }
+.mock-val-num { width: 78px; }
+.dd-mockval { padding: 1px 7px; font-size: 12px; min-width: 0; }
+.mock-itemdel {
+  background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px;
+  line-height: 1; padding: 0 4px; border-radius: 4px; margin-left: 2px;
+}
+.mock-itemdel:hover { color: var(--red); background: var(--surface3); }
+.mock-additem {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer;
+  border-radius: 5px; padding: 3px 9px; font-family: var(--sans); font-size: 11px; margin-top: 4px;
+}
+.mock-additem:hover { background: var(--surface3); color: var(--text); }
 .model-card-head {
   display: flex; align-items: center; gap: 6px; padding: 8px 10px;
   background: var(--surface2); border-bottom: 1px solid var(--border);

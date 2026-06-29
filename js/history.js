@@ -4,6 +4,7 @@ import { renderModels } from './models.js';
 import { renderApi } from './api.js';
 import { renderColors } from './colors.js';
 import { renderTypography } from './typography.js';
+import { renderMock } from './mock.js';
 
 // Slices of `state` captured in each undo snapshot — design nodes plus the
 // Color / Model / API tabs and all their id counters, so undo/redo works
@@ -14,6 +15,7 @@ const KEYS = [
   'typography', 'nextTypoId', 'selectedTypoId',
   'models', 'nextModelId', 'nextPropId',
   'enums', 'nextEnumId', 'nextEnumValId',
+  'mockSets', 'nextMockId',
   'providers', 'nextProviderId', 'apiBaseUrl', 'nextApiId', 'nextHeaderId', 'nextParamId',
 ];
 
@@ -59,4 +61,5 @@ function rerenderActive() {
   else if (mode === 'api') renderApi();
   else if (mode === 'color') renderColors();
   else if (mode === 'typography') renderTypography();
+  else if (mode === 'mock') renderMock();
 }

@@ -17,6 +17,7 @@ export function render() {
   canvas.querySelectorAll('.node').forEach(e => e.remove());
   const roots = state.nodes.filter(n => !n.parentId);
   roots.forEach(n => renderNode(n, canvas));
+  syncMeasuredSizes(); // fold fill/hug rendered sizes back into the model
   renderLayers();
   renderProps();
 }
@@ -81,6 +82,15 @@ function applyPosition(el, node) {
   }
 }
 
+// Visual transform: rotation (degrees) and horizontal/vertical mirroring.
+function applyNodeTransform(el, node) {
+  const parts = [];
+  if (node.rotation) parts.push(`rotate(${node.rotation}deg)`);
+  if (node.flipH) parts.push('scaleX(-1)');
+  if (node.flipV) parts.push('scaleY(-1)');
+  el.style.transform = parts.join(' ');
+}
+
 // Paint an image node's picture as its background (call after setting the fill)
 const IMAGE_FIT = { cover: 'cover', contain: 'contain', fill: '100% 100%', fitWidth: '100% auto', fitHeight: 'auto 100%' };
 
@@ -140,6 +150,14 @@ function applyFill(el, node) {
   }
 }
 
+// Resolve one axis of a node to a CSS size string from its sizing mode:
+//  fill → 100% of the parent, hug → fit-content (shrink to children), else fixed px.
+function axisSize(mode, px) {
+  if (mode === 'fill') return '100%';
+  if (mode === 'hug') return 'fit-content';
+  return px + 'px';
+}
+
 // Size a node: layout types (row/column/wrap/stack) fill their single-child wrapper parent
 function applySize(el, node) {
   const parentNode = node.parentId ? getNode(node.parentId) : null;
@@ -152,9 +170,26 @@ function applySize(el, node) {
     el.style.height = 'auto';
     el.style.whiteSpace = 'pre';
   } else {
-    el.style.width = node.w + 'px';
-    el.style.height = node.h + 'px';
+    el.style.width = axisSize(node.wMode, node.w);
+    el.style.height = axisSize(node.hMode, node.h);
   }
+}
+
+// After the whole tree is in the DOM, copy the rendered box of any fill/hug node
+// back into its w/h so selection, snapping, hit-testing and the props panel agree.
+// (Can't be done during the recursive build: a fill child's 100% resolves to 0
+// while its parent is still detached.)
+export function syncMeasuredSizes() {
+  state.nodes.forEach(n => {
+    const fluid = n.wMode === 'fill' || n.wMode === 'hug' || n.hMode === 'fill' || n.hMode === 'hug';
+    if (!fluid) return;
+    const el = document.getElementById('node-' + n.id);
+    if (!el) return;
+    if (n.wMode === 'fill' || n.wMode === 'hug') n.w = el.offsetWidth;
+    if (n.hMode === 'fill' || n.hMode === 'hug') n.h = el.offsetHeight;
+    // The radius handles were placed using the pre-fill size; reposition them now.
+    if (el.querySelector('.radius-handle')) positionRadiusHandles(el, n);
+  });
 }
 
 // After an auto-size text element is in the DOM, copy its rendered box back into
@@ -197,6 +232,31 @@ function applyScroll(el, node) {
   else { el.style.overflowX = ''; el.style.overflowY = ''; }
 }
 
+// Border radius: a circle shape is fully round; otherwise either one uniform
+// radius or four independent corners (TL TR BR BL).
+function applyRadius(el, node) {
+  if (node.shape === 'circle') { el.style.borderRadius = '50%'; return; }
+  if (node.radiusMode === 'corners') {
+    const r = node.radii || { tl: 0, tr: 0, br: 0, bl: 0 };
+    el.style.borderRadius = `${r.tl}px ${r.tr}px ${r.br}px ${r.bl}px`;
+  } else {
+    el.style.borderRadius = node.radius + 'px';
+  }
+}
+
+// Drop shadow (container/image) → CSS box-shadow. Colour comes from a referenced
+// solid Color variable (or black by default), tinted by the shadow's alpha.
+function applyShadow(el, node) {
+  const list = node.shadows;
+  if (!list || !list.length) { el.style.boxShadow = ''; return; }
+  el.style.boxShadow = list.map(s => {
+    let hex = '#000000';
+    if (s.colorId) { const c = getColorById(s.colorId); if (c && c.fillType === 'solid') hex = c.fill; }
+    const color = applyStrokeOpacity(hex, s.alpha == null ? 1 : s.alpha);
+    return `${s.x || 0}px ${s.y || 0}px ${s.blur || 0}px ${s.spread || 0}px ${color}`;
+  }).join(', ');
+}
+
 // Inner padding (frame + container) — insets its single child from the edges.
 function applyPadding(el, node) {
   const p = node.padding || { t: 0, r: 0, b: 0, l: 0 };
@@ -234,6 +294,7 @@ export function renderNode(node, parent) {
 
   applyPosition(el, node);
   applySize(el, node);
+  applyNodeTransform(el, node);
   el.style.opacity = node.opacity;
   el.style.display = node.visible ? '' : 'none';
   applyWrapperAlignment(el, node);
@@ -241,10 +302,11 @@ export function renderNode(node, parent) {
   if (node.type !== 'text') {
     applyFill(el, node);
     applyStroke(el, node);
-    el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    applyRadius(el, node);
     if (SINGLE_CHILD_TYPES.includes(node.type)) applyPadding(el, node);
     if (node.type === 'container') applyMargin(el, node);
     if (node.type === 'container') applyScroll(el, node);
+    if (node.type === 'container' || node.type === 'image') applyShadow(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     applyTextStyle(el, node);
@@ -254,8 +316,8 @@ export function renderNode(node, parent) {
   if (state.selected.has(node.id)) {
     el.classList.add('selected');
     // Auto-size text is content-driven, so it gets no resize handles (just the outline).
-    if (node.type !== 'frame' && !(node.type === 'text' && node.autoSize)) addHandles(el);
-    if ((node.type === 'container' || node.type === 'image') && node.shape !== 'circle') addRadiusHandles(el, node);
+    if (node.type !== 'frame' && !(node.type === 'text' && node.autoSize)) addHandles(el, node);
+    if ((node.type === 'container' || node.type === 'image') && node.shape !== 'circle' && node.radiusMode !== 'corners') addRadiusHandles(el, node);
   }
 
   if (node.children && node.children.length) {
@@ -270,8 +332,15 @@ export function renderNode(node, parent) {
   attachNodeEvents(el, node);
 }
 
-function addHandles(el) {
+function addHandles(el, node) {
+  // A fluid axis (fill/hug) can't be resized, so hide that axis's side handles —
+  // and the corners too when both axes are fluid (nothing left to resize).
+  const wFluid = node.wMode && node.wMode !== 'fixed';
+  const hFluid = node.hMode && node.hMode !== 'fixed';
   ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].forEach(pos => {
+    if ((pos === 'w' || pos === 'e') && wFluid) return;       // width locked
+    if ((pos === 'n' || pos === 's') && hFluid) return;       // height locked
+    if (pos.length === 2 && wFluid && hFluid) return;         // corner, both locked
     const h = document.createElement('div');
     h.className = `handle handle-${pos}`;
     h.dataset.handle = pos;
@@ -308,15 +377,17 @@ export function updateNodeEl(node) {
   if (!el) return;
   applyPosition(el, node);
   applySize(el, node);
+  applyNodeTransform(el, node);
   applyWrapperAlignment(el, node);
   el.style.opacity = node.opacity;
   if (node.type !== 'text') {
     applyFill(el, node);
     applyStroke(el, node);
-    el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
+    applyRadius(el, node);
     if (SINGLE_CHILD_TYPES.includes(node.type)) applyPadding(el, node);
     if (node.type === 'container') applyMargin(el, node);
     if (node.type === 'container') applyScroll(el, node);
+    if (node.type === 'container' || node.type === 'image') applyShadow(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
     if (el.querySelector('.radius-handle')) positionRadiusHandles(el, node);
   } else {

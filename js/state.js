@@ -27,6 +27,9 @@ export const state = {
   enums: [],
   nextEnumId: 1,
   nextEnumValId: 1,
+  // Mock Data tab: generated fake instances (single/list) of a chosen model
+  mockSets: [],
+  nextMockId: 1,
   // Provider tab: providers group related endpoints (apis) and share one base URL.
   // Each provider has a name + output model; each endpoint has its own name + output.
   providers: [],
@@ -97,6 +100,14 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     strokeStyle: d.strokeStyle,
     opacity: d.opacity,
     radius: 0,
+    radii: { tl: 0, tr: 0, br: 0, bl: 0 }, // per-corner radii (used when radiusMode === 'corners')
+    radiusMode: 'uniform', // 'uniform' (single radius) | 'corners' (independent)
+    rotation: 0, // degrees
+    flipH: false,
+    flipV: false,
+    // Drop shadows (container/image) — a list; each {x,y,blur,spread,colorId,alpha}.
+    // colorId null → black; alpha is 0..1. Empty list = no shadow.
+    shadows: [],
     shape: 'rect',
     colorId: null,
     strokeColorId: null,
@@ -118,6 +129,8 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     margin: { t: 0, r: 0, b: 0, l: 0 },
     scroll: 'none', // container scroll axis: 'none' | 'horizontal' | 'vertical'
     autoSize: type === 'text', // text nodes size to their content (Figma auto-width)
+    wMode: 'fixed', // width sizing: 'fixed' (px) | 'fill' (match parent) | 'hug' (match child)
+    hMode: 'fixed', // height sizing: same options as wMode
     text: d.text || '',
     fontSize: d.fontSize || 14,
     fontWeight: d.fontWeight || '400',

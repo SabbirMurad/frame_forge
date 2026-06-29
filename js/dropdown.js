@@ -38,7 +38,7 @@ export function ddTrigger({ value, options, data = {}, triggerClass = '', labelC
     .map(([k, val]) => `data-${k}="${esc(String(val))}"`).join(' ');
   const optJson = esc(JSON.stringify(options));
   return `<button type="button" class="dd-trigger ${triggerClass}" data-dd-value="${esc(v)}" data-dd-options="${optJson}" ${dataAttrs}>` +
-    `<span class="dd-label ${cls} ${labelCls}">${esc(label)}</span><span class="dd-caret">&#9662;</span></button>`;
+    `<span class="dd-label ${cls} ${labelCls}">${esc(label)}</span><img class="dd-caret" src="icons/arrow-down.svg" alt=""></button>`;
 }
 
 function openFor(trigger) {
@@ -55,11 +55,16 @@ function openFor(trigger) {
   options.forEach(o => {
     if (o.group && o.group !== lastGroup) { html += `<div class="dd-group">${esc(o.group)}</div>`; lastGroup = o.group; }
     const active = String(o.value) === String(cur) ? ' active' : '';
-    html += `<div class="dd-item ${o.cls || ''}${active}" data-val="${esc(String(o.value))}">${esc(o.label)}</div>`;
+    const dis = o.disabled ? ' disabled' : '';
+    const titleAttr = o.title ? ` title="${esc(o.title)}"` : '';
+    html += `<div class="dd-item ${o.cls || ''}${active}${dis}" data-val="${esc(String(o.value))}"${titleAttr}>${esc(o.label)}</div>`;
   });
   menu.innerHTML = html;
 
-  const r = trigger.getBoundingClientRect();
+  // Anchor under the whole field when the trigger is just a caret inside one
+  // (e.g. the Size W/H inputs), otherwise under the trigger itself.
+  const anchor = trigger.closest('.input-affix') || trigger;
+  const r = anchor.getBoundingClientRect();
   menu.style.left = r.left + 'px';
   menu.style.minWidth = r.width + 'px';
   menu.classList.add('open');
@@ -78,6 +83,7 @@ export function initDropdowns() {
     if (trig) { e.stopPropagation(); openFor(trig); return; }
     const item = e.target.closest('#dd-menu .dd-item');
     if (item && openTrigger) {
+      if (item.classList.contains('disabled')) return; // keep the menu open, ignore the pick
       const t = openTrigger;
       const val = item.dataset.val;
       t.dataset.ddValue = val;
