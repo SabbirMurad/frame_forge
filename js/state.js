@@ -41,6 +41,28 @@ export function getNode(id) {
   return state.nodes.find(n => n.id === id);
 }
 
+// Seed a fresh project with sensible starting variables: white + black color
+// swatches and a default "body" type style (white, 14px, 400) that new text
+// adopts. Runs once at boot, before the first history snapshot.
+export function seedDefaults() {
+  if (state.colors.length) return; // already seeded / not a fresh project
+  const mkColor = (name, hex) => ({
+    id: 'c' + (state.nextColorId++), name, fillType: 'solid', fill: hex, alpha: 1,
+    gradient: { angle: 90, stops: [{ color: hex, alpha: 1, pos: 0 }, { color: '#ffffff', alpha: 1, pos: 100 }] },
+  });
+  const white = mkColor('white', '#ffffff');
+  const black = mkColor('black', '#000000');
+  state.colors.push(white, black);
+  state.selectedColorId = white.id;
+
+  const body = {
+    id: 't' + (state.nextTypoId++), name: 'body', fontFamily: 'IBM Plex Sans',
+    fontSize: 14, fontWeight: '400', lineHeight: 1.4, letterSpacing: 0, colorId: white.id,
+  };
+  state.typography.push(body);
+  state.selectedTypoId = body.id;
+}
+
 export function getColorById(id) {
   return state.colors.find(c => c.id === id);
 }
@@ -93,6 +115,9 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     gapH: 8,
     gapV: 8,
     padding: { t: 0, r: 0, b: 0, l: 0 },
+    margin: { t: 0, r: 0, b: 0, l: 0 },
+    scroll: 'none', // container scroll axis: 'none' | 'horizontal' | 'vertical'
+    autoSize: type === 'text', // text nodes size to their content (Figma auto-width)
     text: d.text || '',
     fontSize: d.fontSize || 14,
     fontWeight: d.fontWeight || '400',
@@ -100,5 +125,9 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     alignment: { h: 'left', v: 'top' },
   };
   if (type === 'container') node.name = 'Container_' + state.nextContainerNum++;
+  // Give new nodes a sensible default reference instead of an invisible one:
+  // containers adopt the first color variable, text adopts the first type style.
+  if (type === 'container' && state.colors.length) node.colorId = state.colors[0].id;
+  if (type === 'text' && state.typography.length) node.typoId = state.typography[0].id;
   return node;
 }

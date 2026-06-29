@@ -1,4 +1,4 @@
-import { state, getNode, makeNode } from './state.js';
+import { state, getNode, makeNode, seedDefaults } from './state.js';
 import { canvasWrap, addMenu, frameMenu, closeMenus, showToast } from './utils.js';
 import { canvasToWorld, canAcceptChild, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
@@ -13,6 +13,7 @@ import { initTypography, renderTypography } from './typography.js';
 import { exportModelsCode } from './codegen.js';
 import { updateExportButton } from './validate.js';
 import { initDropdowns } from './dropdown.js';
+import { addShare } from './shares.js';
 
 // Initialize event systems
 initCanvasEvents();
@@ -122,6 +123,8 @@ imageInput.addEventListener('change', () => {
 // Export all model code as a downloadable Dart project (one file per model + used enums)
 document.getElementById('btn-export-code')?.addEventListener('click', (e) => {
   e.preventDefault();
+  // The icon isn't natively disabled (so its hover hint shows); guard here instead.
+  if (e.currentTarget.classList.contains('has-error')) { showToast('Fix errors before exporting'); return; }
   const r = exportModelsCode();
   if (!r.ok) { showToast('Nothing to export — create a model or provider first'); return; }
   const parts = [];
@@ -131,6 +134,29 @@ document.getElementById('btn-export-code')?.addEventListener('click', (e) => {
   let msg = 'Exported ' + (parts.join(' + ') || 'nothing');
   if (r.skipped) msg += ` (${r.skipped} skipped — fix name errors)`;
   showToast(msg);
+});
+
+// Nav icons.
+document.getElementById('nav-home')?.addEventListener('click', () => { window.location.href = 'home.html'; });
+document.getElementById('nav-sync')?.addEventListener('click', () => showToast('Sync — coming soon'));
+document.getElementById('nav-logout')?.addEventListener('click', () => { window.location.href = 'auth.html'; });
+
+// Share project — invite by email (the request shows up in the home Requests tab).
+const shareModal = document.getElementById('share-modal');
+const shareEmail = document.getElementById('share-email');
+const closeShare = () => { if (shareModal) { shareModal.hidden = true; document.getElementById('share-form')?.reset(); } };
+document.getElementById('nav-share')?.addEventListener('click', () => { shareModal.hidden = false; shareEmail?.focus(); });
+document.getElementById('share-close')?.addEventListener('click', closeShare);
+document.getElementById('share-cancel')?.addEventListener('click', closeShare);
+shareModal?.addEventListener('click', e => { if (e.target === shareModal) closeShare(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && shareModal && !shareModal.hidden) closeShare(); });
+document.getElementById('share-form')?.addEventListener('submit', e => {
+  e.preventDefault();
+  const email = shareEmail.value.trim();
+  if (!email) return;
+  addShare(email, state.projectName);
+  closeShare();
+  showToast(`Invitation sent to ${email}`);
 });
 
 // Keep the export button's enabled/disabled state in sync with project validity.
@@ -216,6 +242,7 @@ frameMenu.addEventListener('click', e => {
 });
 
 // Boot
+seedDefaults(); // pre-create white/black colors + a default "body" type style
 saveHistory();
 applyTransform();
 render();

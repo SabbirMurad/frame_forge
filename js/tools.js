@@ -25,7 +25,7 @@ export function initToolEvents() {
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     const tag = document.activeElement.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement.isContentEditable) return;
 
     // Undo/redo apply in every tab (Design, Model, API, Color)
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }

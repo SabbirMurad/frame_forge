@@ -2,7 +2,7 @@ import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
 import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, SINGLE_CHILD_TYPES } from './nodes.js';
 import { saveHistory } from './history.js';
-import { render, updateNodeEl, applyTransform, applyTextStyle, positionRadiusHandles } from './render.js';
+import { render, updateNodeEl, applyTransform, positionRadiusHandles } from './render.js';
 import { renderProps } from './props.js';
 import { setTool } from './tools.js';
 import { duplicateSelected, groupSelected, deleteSelected, bringToFront, sendToBack, cloneNodeInPlace } from './operations.js';
@@ -14,6 +14,10 @@ let panning = false;
 let panStart = null;
 let drawStart = null;
 let selStart = null;
+// Tracks the last text-node click so a quick second click re-opens inline editing.
+// (The native dblclick event is unreliable here because selection re-renders the
+// node element between clicks, breaking the browser's same-target requirement.)
+let lastTextClick = null;
 
 // ───────── Snapping / smart guides ─────────
 const SNAP_PX = 6; // snap distance in screen pixels
@@ -246,6 +250,18 @@ export function attachNodeEvents(el, node) {
     e.stopPropagation();
 
     if (state.tool === 'select') {
+      // Double-click a text node → re-enter inline editing (manual detection,
+      // since render() between clicks defeats the native dblclick event).
+      if (node.type === 'text') {
+        const now = Date.now();
+        if (lastTextClick && lastTextClick.id === node.id && now - lastTextClick.t < 350) {
+          lastTextClick = null;
+          startTextEdit(node, el, false, e);
+          return;
+        }
+        lastTextClick = { id: node.id, t: now };
+      }
+
       if (e.altKey) {
         // Alt+drag → duplicate; the copy is made on the first move (so Alt+click does nothing)
         state.selected.clear();
@@ -433,6 +449,17 @@ function onWrapMouseMove(e) {
     const wy = e.clientY - rect.top;
     const world = canvasToWorld(wx, wy);
     if (state.tool !== 'frame') highlightDropTarget(world.x, world.y);
+    // Live preview of the rectangle being drawn (container) so it's visible
+    // before the mouse is released. Text is auto-sized, so it gets no preview box.
+    if (state.tool === 'container') {
+      const sx = Math.min(drawStart.cx, wx);
+      const sy = Math.min(drawStart.cy, wy);
+      selBox.style.display = 'block';
+      selBox.style.left = sx + 'px';
+      selBox.style.top = sy + 'px';
+      selBox.style.width = Math.abs(wx - drawStart.cx) + 'px';
+      selBox.style.height = Math.abs(wy - drawStart.cy) + 'px';
+    }
     return;
   }
 
@@ -510,6 +537,7 @@ function onWrapMouseUp(e) {
   }
 
   if (drawStart) {
+    selBox.style.display = 'none'; // clear the live draw preview
     const rect = canvasWrap.getBoundingClientRect();
     const wx = e.clientX - rect.left;
     const wy = e.clientY - rect.top;
@@ -519,15 +547,18 @@ function onWrapMouseUp(e) {
     const worldY = Math.min(drawStart.y, world.y);
     let w = Math.max(10, Math.abs(world.x - drawStart.x));
     let h = Math.max(10, Math.abs(world.y - drawStart.y));
-    // A click (or tiny drag) with the text tool → use a default-sized box so the
-    // text doesn't wrap to one character per line.
-    if (state.tool === 'text' && w < 24) { w = 120; h = 40; }
+    // Text is auto-sized (grows with its content), so the drawn box size is ignored
+    // — we anchor it at the click point and let the content define width/height.
+    const isText = state.tool === 'text';
+    if (isText) { w = 10; h = 10; }
 
+    const anchorX = isText ? drawStart.x : worldX;
+    const anchorY = isText ? drawStart.y : worldY;
     const midX = (drawStart.x + world.x) / 2;
     const midY = (drawStart.y + world.y) / 2;
-    const parentFrame = state.tool !== 'frame' ? findFrameAt(midX, midY) : null;
+    const parentFrame = state.tool !== 'frame' ? findFrameAt(isText ? drawStart.x : midX, isText ? drawStart.y : midY) : null;
 
-    let localX = worldX, localY = worldY;
+    let localX = anchorX, localY = anchorY;
     if (parentFrame) {
       if (SINGLE_CHILD_TYPES.includes(parentFrame.type)) {
         // Single-child wrappers pin their child to the top-left corner
@@ -535,8 +566,8 @@ function onWrapMouseUp(e) {
         localY = 0;
       } else {
         const pp = getWorldPos(parentFrame);
-        localX = worldX - pp.x;
-        localY = worldY - pp.y;
+        localX = anchorX - pp.x;
+        localY = anchorY - pp.y;
       }
     }
 
@@ -548,9 +579,19 @@ function onWrapMouseUp(e) {
     state.selected.clear();
     state.selected.add(node.id);
     setTool('select');
+    drawStart = null;
+
+    if (isText) {
+      // Figma-style: start empty and drop straight into inline editing.
+      node.text = '';
+      render();
+      const el = document.getElementById('node-' + node.id);
+      if (el) startTextEdit(node, el, true);
+      return;
+    }
+
     saveHistory();
     render();
-    drawStart = null;
     return;
   }
 }
@@ -579,23 +620,90 @@ function onDblClick(e) {
   if (!nodeEl) return;
   const node = getNode(nodeEl.dataset.id);
   if (!node || node.type !== 'text') return;
-  startTextEdit(node, nodeEl);
+  startTextEdit(node, nodeEl, false, e);
 }
 
-function startTextEdit(node, el) {
-  const ta = document.createElement('textarea');
-  ta.className = 'text-editor';
-  ta.value = node.text;
-  ta.style.left = '0'; ta.style.top = '0';
-  ta.style.width = node.w + 'px'; ta.style.height = node.h + 'px';
-  applyTextStyle(ta, node);
-  el.textContent = '';
-  el.appendChild(ta);
-  ta.focus();
-  ta.select();
-  ta.addEventListener('input', () => { node.text = ta.value; });
-  ta.addEventListener('blur', () => { node.text = ta.value; render(); });
-  ta.addEventListener('keydown', e => { if (e.key === 'Escape') { node.text = ta.value; render(); } });
+let editingTextId = null;
+export const isEditingText = () => editingTextId !== null;
+
+// Inline, Figma-style text editing: the node element itself becomes editable so
+// it grows live as the user types. `isNew` marks a freshly-created node so it is
+// removed if the user leaves it empty.
+function startTextEdit(node, el, isNew = false, ev = null) {
+  if (editingTextId) return;
+  editingTextId = node.id;
+
+  // Remove any selection handles, then make the box editable and auto-growing.
+  el.querySelectorAll('.handle, .radius-handle').forEach(h => h.remove());
+  el.classList.add('editing');
+  el.style.whiteSpace = 'pre';
+  el.style.width = 'auto';
+  el.style.height = 'auto';
+  el.setAttribute('contenteditable', 'plaintext-only');
+  el.textContent = node.text;
+
+  el.focus();
+  // Place the caret rather than selecting everything, so typing inserts instead
+  // of replacing the whole text. Re-edits drop the caret where the user clicked;
+  // otherwise it goes to the end (and a new, empty node just gets the caret).
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  let range = null;
+  if (!isNew && ev && document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+  }
+  if (!range) {
+    range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false); // caret at the end of the content
+  }
+  sel.addRange(range);
+
+  const onInput = () => {
+    node.text = el.innerText;
+    node.w = el.offsetWidth;
+    node.h = el.offsetHeight;
+  };
+
+  const finish = () => {
+    el.removeEventListener('input', onInput);
+    el.removeEventListener('blur', finish);
+    el.removeEventListener('keydown', onKey);
+    el.removeAttribute('contenteditable');
+    el.classList.remove('editing');
+    editingTextId = null;
+    node.text = el.innerText;
+    // Drop an empty text node (nothing was typed).
+    if (!node.text.trim()) {
+      deleteNode(node);
+    } else {
+      saveHistory();
+    }
+    render();
+  };
+
+  const onKey = (e) => {
+    // Keep canvas shortcuts (delete, arrows, tool keys) from firing while typing.
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); el.blur(); }
+  };
+
+  el.addEventListener('input', onInput);
+  el.addEventListener('blur', finish);
+  el.addEventListener('keydown', onKey);
+}
+
+// Remove a node (and its subtree) from state — used when an empty text node is abandoned.
+function deleteNode(node) {
+  const ids = new Set();
+  const collect = (n) => { ids.add(n.id); (n.children || []).forEach(cid => { const c = getNode(cid); if (c) collect(c); }); };
+  collect(node);
+  if (node.parentId) {
+    const p = getNode(node.parentId);
+    if (p) p.children = p.children.filter(id => id !== node.id);
+  }
+  state.nodes = state.nodes.filter(n => !ids.has(n.id));
+  state.selected.delete(node.id);
 }
 
 function onContextMenu(e) {

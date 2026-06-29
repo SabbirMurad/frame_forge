@@ -55,9 +55,9 @@ export function renderProps() {
       </div>
       <div class="prop-row">
         <span class="prop-label">W</span>
-        <input class="prop-input" id="p-w" type="number" value="${Math.round(node.w)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : ''}>
+        <input class="prop-input" id="p-w" type="number" value="${Math.round(node.w)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}>
         <span class="prop-label">H</span>
-        <input class="prop-input" id="p-h" type="number" value="${Math.round(node.h)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : ''}>
+        <input class="prop-input" id="p-h" type="number" value="${Math.round(node.h)}" ${node.type === 'frame' ? 'readonly title="Frame size is fixed"' : (node.type === 'text' && node.autoSize ? 'readonly title="Text size fits its content"' : '')}>
       </div>
       ${node.type !== 'text' ? `
       <div class="prop-row">
@@ -98,20 +98,45 @@ export function renderProps() {
         <button class="shape-btn ${node.shape !== 'circle' ? 'active' : ''}" data-shape="rect">Rectangle</button>
         <button class="shape-btn ${node.shape === 'circle' ? 'active' : ''}" data-shape="circle">Circle</button>
       </div>
-    </div>
+    </div>` : ''}
+    ${node.type === 'container' || node.type === 'frame' ? `
     <div class="prop-section">
       <div class="prop-section-title">Padding</div>
       <div class="prop-row">
         <span class="prop-label" title="Top">T</span>
         <input class="prop-input" id="p-pad-t" type="number" value="${node.padding.t}" min="0">
-        <span class="prop-label" title="Right">R</span>
-        <input class="prop-input" id="p-pad-r" type="number" value="${node.padding.r}" min="0">
+        <span class="prop-label" title="Left">L</span>
+        <input class="prop-input" id="p-pad-l" type="number" value="${node.padding.l}" min="0">
       </div>
       <div class="prop-row">
         <span class="prop-label" title="Bottom">B</span>
         <input class="prop-input" id="p-pad-b" type="number" value="${node.padding.b}" min="0">
+        <span class="prop-label" title="Right">R</span>
+        <input class="prop-input" id="p-pad-r" type="number" value="${node.padding.r}" min="0">
+      </div>
+    </div>` : ''}
+    ${node.type === 'container' ? `
+    <div class="prop-section">
+      <div class="prop-section-title">Margin</div>
+      <div class="prop-row">
+        <span class="prop-label" title="Top">T</span>
+        <input class="prop-input" id="p-mar-t" type="number" value="${node.margin.t}" min="0">
         <span class="prop-label" title="Left">L</span>
-        <input class="prop-input" id="p-pad-l" type="number" value="${node.padding.l}" min="0">
+        <input class="prop-input" id="p-mar-l" type="number" value="${node.margin.l}" min="0">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label" title="Bottom">B</span>
+        <input class="prop-input" id="p-mar-b" type="number" value="${node.margin.b}" min="0">
+        <span class="prop-label" title="Right">R</span>
+        <input class="prop-input" id="p-mar-r" type="number" value="${node.margin.r}" min="0">
+      </div>
+    </div>` : ''}
+    ${node.type === 'container' ? `
+    <div class="prop-section">
+      <div class="prop-section-title">Scroll</div>
+      <div class="shape-toggle">
+        <button class="shape-btn ${node.scroll === 'horizontal' ? 'active' : ''}" data-scroll="horizontal">Horizontal</button>
+        <button class="shape-btn ${node.scroll === 'vertical' ? 'active' : ''}" data-scroll="vertical">Vertical</button>
       </div>
     </div>` : ''}
     ${node.type === 'row' || node.type === 'column' ? `
@@ -207,10 +232,30 @@ export function renderProps() {
         renderLayers();
       });
     });
+  }
+
+  if (node.type === 'container' || node.type === 'frame') {
     bindPropNum('p-pad-t', v => { node.padding.t = Math.max(0, v); updateNodeEl(node); });
     bindPropNum('p-pad-r', v => { node.padding.r = Math.max(0, v); updateNodeEl(node); });
     bindPropNum('p-pad-b', v => { node.padding.b = Math.max(0, v); updateNodeEl(node); });
     bindPropNum('p-pad-l', v => { node.padding.l = Math.max(0, v); updateNodeEl(node); });
+  }
+
+  if (node.type === 'container') {
+    bindPropNum('p-mar-t', v => { node.margin.t = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-mar-r', v => { node.margin.r = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-mar-b', v => { node.margin.b = Math.max(0, v); updateNodeEl(node); });
+    bindPropNum('p-mar-l', v => { node.margin.l = Math.max(0, v); updateNodeEl(node); });
+
+    document.querySelectorAll('[data-scroll]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Toggle: clicking the active axis turns scrolling off; otherwise switch
+        // to that axis (only one axis can scroll at a time).
+        node.scroll = node.scroll === btn.dataset.scroll ? 'none' : btn.dataset.scroll;
+        updateNodeEl(node);
+        renderProps();
+      });
+    });
   }
 
   if (node.type === 'row' || node.type === 'column') {

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FrameForge</title>
+<link rel="icon" type="image/svg+xml" href="icons/logo.svg">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/canvas.css">
@@ -56,18 +57,33 @@
 
   <!-- LEFT SIDEBAR -->
   <div id="layers-panel">
-    <div id="nav-card">
+    <div id="top-card">
+      <div id="profile">
+        <img id="profile-avatar" src="icons/avatar.svg" alt="Profile">
+        <div id="profile-info">
+          <span id="profile-name">Sabbir Hassan</span>
+          <span id="profile-email">sbbir0087@gmail.com</span>
+        </div>
+      </div>
       <div id="project-header">
         <input id="project-name" type="text" value="Untitled" spellcheck="false" placeholder="Project name">
         <button id="sidebar-toggle" class="icon-btn" title="Collapse sidebar">&#171;</button>
       </div>
+      <div id="nav-icons">
+        <button type="button" class="nav-icon-btn" id="nav-home" data-tooltip="Home"><img src="icons/home.svg" alt="Home"></button>
+        <button type="button" class="nav-icon-btn" id="nav-share" data-tooltip="Share"><img src="icons/share.svg" alt="Share"></button>
+        <button type="button" class="nav-icon-btn" id="nav-sync" data-tooltip="Sync"><img src="icons/sync.svg" alt="Sync"></button>
+        <button type="button" class="nav-icon-btn" id="btn-export-code" data-tooltip="Export"><img src="icons/export.svg" alt="Export"></button>
+        <button type="button" class="nav-icon-btn" id="nav-logout" data-tooltip="Logout"><img src="icons/logout.svg" alt="Logout"></button>
+      </div>
+    </div>
+    <div id="nav-card">
       <div id="mode-tabs">
         <button class="mode-tab" data-mode="color">Color</button>
         <button class="mode-tab" data-mode="typography">Typography</button>
         <button class="mode-tab active" data-mode="design">Design</button>
         <button class="mode-tab" data-mode="model">Model</button>
         <button class="mode-tab" data-mode="api">Provider</button>
-        <button type="button" id="btn-export-code" title="Export model code as a Dart project">&#8675; Export code</button>
       </div>
     </div>
     <div id="design-view">
@@ -106,6 +122,24 @@
       <div class="empty-state" id="no-selection">Select an element<br>to edit its properties</div>
       <div id="props-fields" style="display:none"></div>
     </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div id="share-modal" class="modal-overlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Share project</h3>
+      <button type="button" class="modal-close" id="share-close" aria-label="Close">&times;</button>
+    </div>
+    <p class="modal-sub">Invite someone by email. Once they accept the request from their home page, they can view and edit this project.</p>
+    <form id="share-form">
+      <input type="email" id="share-email" class="modal-input" placeholder="name@example.com" required autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="modal-btn-ghost" id="share-cancel">Cancel</button>
+        <button type="submit" class="modal-btn">Send invite</button>
+      </div>
+    </form>
   </div>
 </div>
 

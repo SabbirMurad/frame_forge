@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameForge — Sign in</title>
+<link rel="icon" type="image/svg+xml" href="icons/logo.svg">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+<div id="auth">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img class="auth-logo" src="icons/logo.svg" alt="">
+      <span class="auth-brand-name">FrameForge</span>
+    </div>
+
+    <div class="auth-title" id="auth-title">Welcome back</div>
+    <div class="auth-sub" id="auth-sub">Sign in to your account to continue.</div>
+
+    <!-- Sign in / Sign up -->
+    <div id="auth-main">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="signin">Sign in</button>
+        <button type="button" class="auth-tab" data-mode="signup">Sign up</button>
+      </div>
+
+      <form class="auth-form" id="auth-form">
+        <div class="auth-field auth-hint">
+          <label for="auth-name">Name</label>
+          <input id="auth-name" type="text" placeholder="Your name" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="auth-submit" id="auth-submit">Sign in</button>
+      </form>
+
+      <div class="auth-foot" id="auth-foot">
+        Don&rsquo;t have an account? <a id="auth-switch">Sign up</a>
+      </div>
+    </div>
+
+    <!-- Email OTP verification (shown after sign up) -->
+    <div id="auth-otp" hidden>
+      <form class="auth-form" id="otp-form">
+        <div class="otp-inputs">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 1">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+          <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+        </div>
+        <button type="submit" class="auth-submit" id="otp-verify">Verify email</button>
+      </form>
+      <div class="auth-foot">Didn&rsquo;t get a code? <a id="otp-resend">Resend</a></div>
+      <div class="auth-foot"><a id="otp-back">&larr; Back</a></div>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/auth.js"></script>
+</body>
+</html>

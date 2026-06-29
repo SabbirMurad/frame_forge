@@ -146,10 +146,23 @@ function applySize(el, node) {
   if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type) && MULTI_CHILD_TYPES.includes(node.type)) {
     el.style.width = '100%';
     el.style.height = '100%';
+  } else if (node.type === 'text' && node.autoSize) {
+    // Auto-width text grows to fit its content (manual line breaks only, no wrap).
+    el.style.width = 'auto';
+    el.style.height = 'auto';
+    el.style.whiteSpace = 'pre';
   } else {
     el.style.width = node.w + 'px';
     el.style.height = node.h + 'px';
   }
+}
+
+// After an auto-size text element is in the DOM, copy its rendered box back into
+// the node's w/h so selection, snapping, hit-testing and the props panel agree.
+export function syncTextSize(el, node) {
+  if (!(node.type === 'text' && node.autoSize)) return;
+  node.w = el.offsetWidth;
+  node.h = el.offsetHeight;
 }
 
 // Container/image stroke comes from a referenced solid Color variable; others use their own stroke.
@@ -168,7 +181,23 @@ function applyStroke(el, node) {
   else el.style.border = 'none';
 }
 
-// Inner padding (container only) — insets its single child from the edges.
+// Outer margin (container only) — space around the box. Pushes flex siblings
+// apart in row/column/wrap parents; offsets free/absolute containers.
+function applyMargin(el, node) {
+  const m = node.margin || { t: 0, r: 0, b: 0, l: 0 };
+  el.style.margin = `${m.t}px ${m.r}px ${m.b}px ${m.l}px`;
+}
+
+// Scroll axis (container only) — lets oversized content scroll on one axis.
+// Only one axis scrolls at a time; the cross axis is clipped.
+function applyScroll(el, node) {
+  const s = node.scroll || 'none';
+  if (s === 'horizontal') { el.style.overflowX = 'auto'; el.style.overflowY = 'hidden'; }
+  else if (s === 'vertical') { el.style.overflowY = 'auto'; el.style.overflowX = 'hidden'; }
+  else { el.style.overflowX = ''; el.style.overflowY = ''; }
+}
+
+// Inner padding (frame + container) — insets its single child from the edges.
 function applyPadding(el, node) {
   const p = node.padding || { t: 0, r: 0, b: 0, l: 0 };
   el.style.padding = `${p.t}px ${p.r}px ${p.b}px ${p.l}px`;
@@ -213,7 +242,9 @@ export function renderNode(node, parent) {
     applyFill(el, node);
     applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
-    if (node.type === 'container') applyPadding(el, node);
+    if (SINGLE_CHILD_TYPES.includes(node.type)) applyPadding(el, node);
+    if (node.type === 'container') applyMargin(el, node);
+    if (node.type === 'container') applyScroll(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
   } else {
     applyTextStyle(el, node);
@@ -222,7 +253,8 @@ export function renderNode(node, parent) {
 
   if (state.selected.has(node.id)) {
     el.classList.add('selected');
-    if (node.type !== 'frame') addHandles(el);
+    // Auto-size text is content-driven, so it gets no resize handles (just the outline).
+    if (node.type !== 'frame' && !(node.type === 'text' && node.autoSize)) addHandles(el);
     if ((node.type === 'container' || node.type === 'image') && node.shape !== 'circle') addRadiusHandles(el, node);
   }
 
@@ -234,6 +266,7 @@ export function renderNode(node, parent) {
   }
 
   parent.appendChild(el);
+  syncTextSize(el, node);
   attachNodeEvents(el, node);
 }
 
@@ -281,12 +314,15 @@ export function updateNodeEl(node) {
     applyFill(el, node);
     applyStroke(el, node);
     el.style.borderRadius = node.shape === 'circle' ? '50%' : node.radius + 'px';
-    if (node.type === 'container') applyPadding(el, node);
+    if (SINGLE_CHILD_TYPES.includes(node.type)) applyPadding(el, node);
+    if (node.type === 'container') applyMargin(el, node);
+    if (node.type === 'container') applyScroll(el, node);
     if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
     if (el.querySelector('.radius-handle')) positionRadiusHandles(el, node);
   } else {
     applyTextStyle(el, node);
     el.textContent = node.text;
+    syncTextSize(el, node);
   }
 }
 

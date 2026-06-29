@@ -5,6 +5,9 @@ import { saveHistory } from './history.js';
 import { render } from './render.js';
 
 let layerFlatList = [];
+// Transient UI state — which tree nodes are collapsed in the layers panel.
+// Kept out of the node model so it isn't saved to history or exported.
+const collapsed = new Set();
 
 export function renderLayers() {
   layersList.innerHTML = '';
@@ -16,7 +19,7 @@ export function renderLayers() {
     const el = buildLayerItem(node, depth);
     layersList.appendChild(el);
     layerFlatList.push({ node, depth, el });
-    if (node.children && node.children.length) {
+    if (node.children && node.children.length && !collapsed.has(node.id)) {
       [...node.children].reverse().forEach(cid => walk(cid, depth + 1));
     }
   }
@@ -36,9 +39,16 @@ function buildLayerItem(node, depth) {
   item.dataset.id = node.id;
   item.draggable = true;
 
+  const hasChildren = node.children && node.children.length > 0;
+  const isCollapsed = collapsed.has(node.id);
+  const caret = hasChildren
+    ? `<span class="layer-caret" title="${isCollapsed ? 'Expand' : 'Collapse'}">${isCollapsed ? '\u25b6' : '\u25bc'}</span>`
+    : `<span class="layer-caret layer-caret-empty"></span>`;
+
   item.innerHTML = `
     <span class="layer-grip">\u2807</span>
     <div class="layer-indent" style="padding-left:${depth * 14}px;display:flex;align-items:center;gap:6px;flex:1;overflow:hidden">
+      ${caret}
       <span class="layer-icon">${icon}</span>
       <span class="layer-name">${node.name}</span>
     </div>
@@ -46,6 +56,14 @@ function buildLayerItem(node, depth) {
   `;
 
   item.addEventListener('click', (e) => {
+    if (e.target.classList.contains('layer-caret')) {
+      if (hasChildren) {
+        if (collapsed.has(node.id)) collapsed.delete(node.id);
+        else collapsed.add(node.id);
+        renderLayers();
+      }
+      return;
+    }
     if (e.target.classList.contains('layer-vis')) {
       node.visible = !node.visible;
       render();

@@ -14,6 +14,7 @@
 .node.drag-source { opacity: 0.45 !important; }
 .node.container { background: #5b8af5; }
 .node.text-node { background: transparent; cursor: text; white-space: pre-wrap; word-break: break-word; }
+.node.text-node.editing { outline: 1px solid var(--accent); outline-offset: 1px; min-width: 8px; cursor: text; }
 
 /* Resize Handles */
 .handle {

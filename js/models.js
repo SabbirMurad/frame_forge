@@ -118,6 +118,17 @@ function enumValError(en, v) {
   return null;
 }
 
+// Deep validity for export gating: a model is broken if its name is invalid OR
+// any of its field names are (modelError only checks the name itself).
+export function anyModelError() {
+  return state.models.some(m => modelError(m) !== null || m.properties.some(p => propError(m, p) !== null));
+}
+
+// Likewise an enum is broken if its name OR any of its value names are invalid.
+export function anyEnumError() {
+  return state.enums.some(en => enumError(en) !== null || en.values.some(v => enumValError(en, v) !== null));
+}
+
 // Sync enum name warnings (renaming can change a model's collision status too).
 function refreshEnumWarns() {
   state.enums.forEach(en => {
@@ -329,22 +340,22 @@ export function renderModels() {
   board.innerHTML = `
     <div class="model-section">
       <div class="model-board-head">
-        <span class="model-board-title">Models</span>
-        <button class="model-add-btn" id="model-new">+ New Model</button>
-      </div>
-      <div class="model-cards">
-        ${state.models.map(renderCard).join('')}
-        ${state.models.length === 0 ? `<div class="model-empty">No models yet — click “+ New Model” to create one.</div>` : ''}
-      </div>
-    </div>
-    <div class="model-section">
-      <div class="model-board-head">
         <span class="model-board-title">Enums</span>
         <button class="model-add-btn" id="enum-new">+ New Enum</button>
       </div>
       <div class="model-cards">
         ${state.enums.map(renderEnumCard).join('')}
         ${state.enums.length === 0 ? `<div class="model-empty">No enums yet — click “+ New Enum” to create one.</div>` : ''}
+      </div>
+    </div>
+    <div class="model-section">
+      <div class="model-board-head">
+        <span class="model-board-title">Models</span>
+        <button class="model-add-btn" id="model-new">+ New Model</button>
+      </div>
+      <div class="model-cards">
+        ${state.models.map(renderCard).join('')}
+        ${state.models.length === 0 ? `<div class="model-empty">No models yet — click “+ New Model” to create one.</div>` : ''}
       </div>
     </div>`;
 }
