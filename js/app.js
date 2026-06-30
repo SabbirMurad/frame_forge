@@ -1,6 +1,6 @@
 import { state, getNode, makeNode, seedDefaults } from './state.js';
 import { canvasWrap, addMenu, frameMenu, closeMenus, showToast } from './utils.js';
-import { canvasToWorld, canAcceptChild, SINGLE_CHILD_TYPES } from './nodes.js';
+import { canvasToWorld, canAcceptChild, isSingleChild } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render, applyTransform } from './render.js';
 import { initCanvasEvents } from './canvas.js';
@@ -51,7 +51,7 @@ function resolvePlacement(type, w, h) {
   let x, y;
   if (parent) {
     // Single-child wrappers pin to top-left; otherwise center within the parent
-    if (SINGLE_CHILD_TYPES.includes(parent.type)) { x = 0; y = 0; }
+    if (isSingleChild(parent)) { x = 0; y = 0; }
     else { x = parent.w / 2 - w / 2; y = parent.h / 2 - h / 2; }
   } else {
     x = world.x - w / 2;
@@ -114,12 +114,6 @@ imageInput.addEventListener('change', () => {
     probe.src = src;
   };
   reader.readAsDataURL(file);
-});
-
-// Layout tools create a fixed 200x200 element on click (no drag-to-size needed)
-['row', 'column', 'wrap', 'stack'].forEach(type => {
-  const btn = document.getElementById('tool-' + type);
-  if (btn) btn.addEventListener('click', () => createElement(type));
 });
 
 // Export all model code as a downloadable Dart project (one file per model + used enums)

@@ -128,6 +128,7 @@ export function makeNode(type, x, y, w, h, parentId = null) {
     padding: { t: 0, r: 0, b: 0, l: 0 },
     margin: { t: 0, r: 0, b: 0, l: 0 },
     scroll: 'none', // container scroll axis: 'none' | 'horizontal' | 'vertical'
+    layout: 'none', // container auto-layout: 'none' | 'row' | 'column' | 'wrap' | 'stack'
     autoSize: type === 'text', // text nodes size to their content (Figma auto-width)
     wMode: 'fixed', // width sizing: 'fixed' (px) | 'fill' (match parent) | 'hug' (match child)
     hMode: 'fixed', // height sizing: same options as wMode

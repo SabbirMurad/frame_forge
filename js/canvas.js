@@ -1,6 +1,6 @@
 import { state, getNode, makeNode } from './state.js';
 import { canvasWrap, selBox, closeMenus, ctxMenu, showToast } from './utils.js';
-import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, SINGLE_CHILD_TYPES } from './nodes.js';
+import { canvasToWorld, getWorldPos, findFrameAt, reparentNode, clearDropTargets, highlightDropTarget, isDescendant, isSingleChild, isStack } from './nodes.js';
 import { saveHistory } from './history.js';
 import { render, updateNodeEl, applyTransform, positionRadiusHandles } from './render.js';
 import { renderProps } from './props.js';
@@ -26,7 +26,7 @@ const SNAP_PX = 6; // snap distance in screen pixels
 function isFreeNode(n) {
   if (!n.parentId) return true;
   const p = getNode(n.parentId);
-  return !!p && p.type === 'stack';
+  return isStack(p);
 }
 
 // Capture other nodes' world rects once at drag start (they don't move while dragging one).
@@ -171,6 +171,24 @@ function drawGuides(guides) {
 function clearGuides() {
   const layer = document.getElementById('snap-guides');
   if (layer) layer.innerHTML = '';
+}
+
+// ───────── Rotation / flip aware geometry ─────────
+// The node's local +X and +Y axes as unit vectors in world space, given its
+// rotation and flips. These are the columns of the box→world linear map; because
+// they're orthonormal, the same numbers (transposed) map world deltas → local.
+function nodeAxes(node) {
+  const t = (node.rotation || 0) * Math.PI / 180;
+  const sx = node.flipH ? -1 : 1, sy = node.flipV ? -1 : 1;
+  const cos = Math.cos(t), sin = Math.sin(t);
+  return { axx: sx * cos, axy: sx * sin, ayx: -sy * sin, ayy: sy * cos };
+}
+
+// Project a world-space movement (dx, dy) onto a node's own axes, so dragging a
+// rotated node's handle changes the dimension the user is actually pulling.
+function toLocalDelta(node, dx, dy) {
+  const a = nodeAxes(node);
+  return { du: dx * a.axx + dy * a.axy, dv: dx * a.ayx + dy * a.ayy };
 }
 
 // World-space rect of a node, measured from the DOM (accurate for any layout).
@@ -342,9 +360,15 @@ function onWrapMouseMove(e) {
     const n = radiusDragging.node;
     const el = document.getElementById('node-' + n.id);
     if (el) {
+      // Map the cursor into the node's local box, accounting for rotation/flip.
+      // getBoundingClientRect's centre is the node centre (rotation pivots there),
+      // so we offset from the centre and project back onto the local axes.
       const rect = el.getBoundingClientRect();
-      const localX = (e.clientX - rect.left) / state.zoom;
-      const localY = (e.clientY - rect.top) / state.zoom;
+      const a = nodeAxes(n);
+      const ox = (e.clientX - (rect.left + rect.right) / 2) / state.zoom;
+      const oy = (e.clientY - (rect.top + rect.bottom) / 2) / state.zoom;
+      const localX = n.w / 2 + (ox * a.axx + oy * a.axy);
+      const localY = n.h / 2 + (ox * a.ayx + oy * a.ayy);
       const c = radiusDragging.corner;
       const dx = Math.max(0, c.includes('w') ? localX : n.w - localX);
       const dy = Math.max(0, c.includes('n') ? localY : n.h - localY);
@@ -358,33 +382,44 @@ function onWrapMouseMove(e) {
   }
 
   if (resizing) {
-    const dx = (e.clientX - resizing.startX) / state.zoom;
-    const dy = (e.clientY - resizing.startY) / state.zoom;
+    const dxS = (e.clientX - resizing.startX) / state.zoom;
+    const dyS = (e.clientY - resizing.startY) / state.zoom;
     const n = resizing.node;
     const h = resizing.handle;
-    let { origX: x, origY: y, origW: w, origH: h2 } = resizing;
+    const rotated = !!(n.rotation || n.flipH || n.flipV);
 
-    if (h.includes('e')) w = Math.max(10, resizing.origW + dx);
-    if (h.includes('s')) h2 = Math.max(10, resizing.origH + dy);
-    if (h.includes('w')) { x = resizing.origX + dx; w = Math.max(10, resizing.origW - dx); }
-    if (h.includes('n')) { y = resizing.origY + dy; h2 = Math.max(10, resizing.origH - dy); }
+    // Project the screen drag onto the node's own axes so a rotated/flipped node
+    // grows the dimension the user is actually pulling (identity when upright).
+    const { du, dv } = toLocalDelta(n, dxS, dyS);
+    const mx = h.includes('e') ? 1 : h.includes('w') ? -1 : 0; // moving side,
+    const my = h.includes('s') ? 1 : h.includes('n') ? -1 : 0; // in local axes
+    let w = Math.max(10, resizing.origW + mx * du);
+    let h2 = Math.max(10, resizing.origH + my * dv);
 
     // Hold Shift on a corner handle → keep the original aspect ratio
-    const corner = (h.includes('e') || h.includes('w')) && (h.includes('n') || h.includes('s'));
+    const corner = mx !== 0 && my !== 0;
     if (e.shiftKey && corner) {
       const aspect = resizing.origW / resizing.origH;
-      if (Math.abs(dx) * resizing.origH >= Math.abs(dy) * resizing.origW) {
+      if (Math.abs(du) * resizing.origH >= Math.abs(dv) * resizing.origW) {
         h2 = Math.max(10, w / aspect); w = h2 * aspect;     // width drives
       } else {
         w = Math.max(10, h2 * aspect); h2 = w / aspect;     // height drives
       }
-      if (h.includes('w')) x = resizing.origX + resizing.origW - w;
-      if (h.includes('n')) y = resizing.origY + resizing.origH - h2;
     }
 
-    n.x = x; n.y = y; n.w = w; n.h = h2;
-    // Snap the moving edge(s) to nearby elements (skipped during Shift-proportional resize)
-    if (resizing.snapTargets && !(e.shiftKey && corner)) {
+    // Keep the opposite edge/corner anchored. The element rotates about its centre,
+    // so hold the fixed point by shifting the centre, then derive x/y from it.
+    const a = nodeAxes(n);
+    const cx0 = resizing.origX + resizing.origW / 2;
+    const cy0 = resizing.origY + resizing.origH / 2;
+    const gx = (-mx) * (resizing.origW - w) / 2; // fixed-offset change, local axes
+    const gy = (-my) * (resizing.origH - h2) / 2;
+    n.x = cx0 + a.axx * gx + a.ayx * gy - w / 2;
+    n.y = cy0 + a.axy * gx + a.ayy * gy - h2 / 2;
+    n.w = w; n.h = h2;
+
+    // Snapping assumes an axis-aligned box, so only for an upright node.
+    if (resizing.snapTargets && !rotated && !(e.shiftKey && corner)) {
       drawGuides(snapResize(n, h, resizing.snapTargets));
     } else {
       clearGuides();
@@ -418,7 +453,10 @@ function onWrapMouseMove(e) {
       }
       dragging.node.x = dragging.origX + dx;
       dragging.node.y = dragging.origY + dy;
-      if (dragging.snapTargets) drawGuides(snapNode(dragging.node, dragging.snapTargets));
+      // Snapping uses the upright box; skip it for a rotated node, whose visible
+      // bounds no longer line up with x/y/w/h. (Translation itself is unaffected.)
+      if (dragging.snapTargets && !dragging.node.rotation) drawGuides(snapNode(dragging.node, dragging.snapTargets));
+      else clearGuides();
       updateNodeEl(dragging.node);
       document.getElementById('node-' + dragging.node.id)?.classList.add('drag-source');
       const wp = getWorldPos(dragging.node);
@@ -504,7 +542,7 @@ function onWrapMouseUp(e) {
       } else if (n.parentId) {
         // Stayed in the same parent: a single-child wrapper keeps its child pinned top-left
         const parent = getNode(n.parentId);
-        if (parent && SINGLE_CHILD_TYPES.includes(parent.type)) { n.x = 0; n.y = 0; }
+        if (isSingleChild(parent)) { n.x = 0; n.y = 0; }
       }
     }
     dragging = null;
@@ -560,7 +598,7 @@ function onWrapMouseUp(e) {
 
     let localX = anchorX, localY = anchorY;
     if (parentFrame) {
-      if (SINGLE_CHILD_TYPES.includes(parentFrame.type)) {
+      if (isSingleChild(parentFrame)) {
         // Single-child wrappers pin their child to the top-left corner
         localX = 0;
         localY = 0;

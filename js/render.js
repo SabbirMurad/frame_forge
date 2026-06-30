@@ -1,6 +1,6 @@
 import { state, getNode, getColorById, getTypoById } from './state.js';
 import { colorCss } from './colors.js';
-import { SINGLE_CHILD_TYPES, MULTI_CHILD_TYPES } from './nodes.js';
+import { SINGLE_CHILD_TYPES, MULTI_CHILD_TYPES, flexKind, isFlex, isSingleChild } from './nodes.js';
 import { canvas, zoomLabel, canvasWrap } from './utils.js';
 import { drawRulers } from './rulers.js';
 import { renderLayers } from './layers.js';
@@ -28,18 +28,19 @@ export const FLEX_TYPES = ['row', 'column', 'wrap'];
 // Row/column also honour the node's `alignment` (Horiz/Vert) — mapped onto the
 // main/cross axis depending on the flex direction.
 function applyFlexLayout(el, node) {
+  const kind = flexKind(node);
   el.style.display = node.visible ? 'flex' : 'none';
   el.style.alignContent = 'flex-start';
   const a = node.alignment || { h: 'left', v: 'top' };
-  if (node.type === 'row') {
+  if (kind === 'row') {
     el.style.flexDirection = 'row'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
     el.style.justifyContent = ALIGN_H[a.h] || 'flex-start';   // horizontal = main axis
     el.style.alignItems = ALIGN_V[a.v] || 'flex-start';       // vertical   = cross axis
-  } else if (node.type === 'column') {
+  } else if (kind === 'column') {
     el.style.flexDirection = 'column'; el.style.flexWrap = 'nowrap'; el.style.gap = node.gap + 'px';
     el.style.justifyContent = ALIGN_V[a.v] || 'flex-start';   // vertical   = main axis
     el.style.alignItems = ALIGN_H[a.h] || 'flex-start';       // horizontal = cross axis
-  } else if (node.type === 'wrap') {
+  } else if (kind === 'wrap') {
     el.style.flexDirection = 'row'; el.style.flexWrap = 'wrap'; el.style.gap = node.gapV + 'px ' + node.gapH + 'px';
     el.style.justifyContent = ''; el.style.alignItems = '';
   }
@@ -51,7 +52,7 @@ const ALIGN_V = { top: 'flex-start', center: 'center', bottom: 'flex-end' };
 // Single-child wrappers (frame/container) align their child via flexbox,
 // driven by the wrapper's `alignment` property.
 function applyWrapperAlignment(el, node) {
-  if (!SINGLE_CHILD_TYPES.includes(node.type)) return;
+  if (!isSingleChild(node)) return;
   const a = node.alignment || { h: 'left', v: 'top' };
   el.style.display = node.visible ? 'flex' : 'none';
   el.style.justifyContent = ALIGN_H[a.h] || 'flex-start';
@@ -64,12 +65,12 @@ function applyWrapperAlignment(el, node) {
 //  - stack or canvas root             → free absolute positioning (x/y)
 function applyPosition(el, node) {
   const parentNode = node.parentId ? getNode(node.parentId) : null;
-  if (parentNode && FLEX_TYPES.includes(parentNode.type)) {
+  if (isFlex(parentNode)) {
     el.style.position = 'relative';
     el.style.left = '';
     el.style.top = '';
     el.style.flex = '0 0 auto';
-  } else if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type)) {
+  } else if (isSingleChild(parentNode)) {
     el.style.position = 'relative';
     el.style.flex = '0 0 auto';
     el.style.left = '';
@@ -161,7 +162,9 @@ function axisSize(mode, px) {
 // Size a node: layout types (row/column/wrap/stack) fill their single-child wrapper parent
 function applySize(el, node) {
   const parentNode = node.parentId ? getNode(node.parentId) : null;
-  if (parentNode && SINGLE_CHILD_TYPES.includes(parentNode.type) && MULTI_CHILD_TYPES.includes(node.type)) {
+  // A legacy multi-child layout node fills its single-child wrapper parent.
+  // (Containers-with-layout keep their own explicit width/height instead.)
+  if (isSingleChild(parentNode) && MULTI_CHILD_TYPES.includes(node.type)) {
     el.style.width = '100%';
     el.style.height = '100%';
   } else if (node.type === 'text' && node.autoSize) {
@@ -307,7 +310,7 @@ export function renderNode(node, parent) {
     if (node.type === 'container') applyMargin(el, node);
     if (node.type === 'container') applyScroll(el, node);
     if (node.type === 'container' || node.type === 'image') applyShadow(el, node);
-    if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
+    if (isFlex(node)) applyFlexLayout(el, node);
   } else {
     applyTextStyle(el, node);
     el.textContent = node.text;
@@ -388,7 +391,7 @@ export function updateNodeEl(node) {
     if (node.type === 'container') applyMargin(el, node);
     if (node.type === 'container') applyScroll(el, node);
     if (node.type === 'container' || node.type === 'image') applyShadow(el, node);
-    if (FLEX_TYPES.includes(node.type)) applyFlexLayout(el, node);
+    if (isFlex(node)) applyFlexLayout(el, node);
     if (el.querySelector('.radius-handle')) positionRadiusHandles(el, node);
   } else {
     applyTextStyle(el, node);

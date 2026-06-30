@@ -7,12 +7,35 @@ export const SINGLE_CHILD_TYPES = ['frame', 'container'];
 // Multi-child layout types (row/column/wrap are flex, stack is absolute)
 export const MULTI_CHILD_TYPES = ['row', 'column', 'wrap', 'stack'];
 
+// A container adopts a layout via its `layout` property ('row'/'column'/'wrap'/
+// 'stack'); the legacy row/column/wrap/stack node types are equivalent to a
+// container locked to that layout. These helpers give a node's *effective*
+// layout role from either source, so the rest of the app needn't care which.
+export function flexKind(node) {
+  if (!node) return null;
+  if (node.type === 'row' || node.type === 'column' || node.type === 'wrap') return node.type;
+  if (node.type === 'container' && ['row', 'column', 'wrap'].includes(node.layout)) return node.layout;
+  return null;
+}
+export function isFlex(node) { return flexKind(node) !== null; }
+export function isStack(node) {
+  return !!node && (node.type === 'stack' || (node.type === 'container' && node.layout === 'stack'));
+}
+// Holds exactly one child (pads + aligns it): a frame, or a layout-less container.
+export function isSingleChild(node) {
+  if (!node) return false;
+  if (node.type === 'frame') return true;
+  return node.type === 'container' && (!node.layout || node.layout === 'none');
+}
+// Lays its children out itself (flex or stack) rather than holding just one.
+export function isMultiChild(node) { return isFlex(node) || isStack(node); }
+
 // Whether `node` can accept `childId` as a child right now.
 // Multi-child layouts always can; single-child wrappers only if empty
 // (ignoring childId itself, so an existing child can be re-dropped/moved within).
 export function canAcceptChild(node, childId = null) {
   if (!node || !CONTAINER_TYPES.includes(node.type)) return false;
-  if (!SINGLE_CHILD_TYPES.includes(node.type)) return true;
+  if (!isSingleChild(node)) return true;
   const kids = (node.children || []).filter(id => id !== childId);
   return kids.length === 0;
 }
@@ -76,7 +99,7 @@ export function reparentNode(node, newParentId) {
     const newParent = getNode(newParentId);
     if (newParent) {
       if (!newParent.children.includes(node.id)) newParent.children.push(node.id);
-      if (SINGLE_CHILD_TYPES.includes(newParent.type)) {
+      if (isSingleChild(newParent)) {
         // Single-child wrappers pin their child to the top-left corner
         node.x = 0;
         node.y = 0;

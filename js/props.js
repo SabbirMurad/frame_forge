@@ -162,6 +162,53 @@ propsFields.addEventListener('dd:change', e => {
   }
 });
 
+// Container auto-layout choices, shown as a row of icon toggles. 'Stack' overlaps
+// absolutely-positioned children, which can't scroll, so it's disabled while the
+// container scrolls. Reuses the toolbar's row/column/wrap/stack glyphs.
+const LAYOUT_CHOICES = [
+  { value: 'none', icon: 'layout-none', title: 'None' },
+  { value: 'row', icon: 'row', title: 'Row' },
+  { value: 'column', icon: 'column', title: 'Column' },
+  { value: 'wrap', icon: 'wrap', title: 'Wrap' },
+  { value: 'stack', icon: 'stack', title: 'Stack' },
+];
+
+function layoutSection(node) {
+  const cur = node.layout || 'none';
+  const scrollOn = node.scroll && node.scroll !== 'none';
+  const btns = LAYOUT_CHOICES.map(c => {
+    const dis = c.value === 'stack' && scrollOn;
+    return `<button class="layout-btn ${cur === c.value ? 'active' : ''}" data-layout="${c.value}" title="${dis ? 'Turn off Scroll to use Stack' : c.title}"${dis ? ' disabled' : ''}><img src="icons/${c.icon}.svg" alt="${c.title}"></button>`;
+  }).join('');
+  return `
+    <div class="prop-section">
+      <div class="prop-section-title">Layout</div>
+      <div class="layout-toggle">${btns}</div>
+      ${cur === 'row' || cur === 'column' ? `
+      <div class="prop-row" style="margin-top:8px">
+        <span class="prop-label-wide">Gap</span>
+        <input class="prop-input" id="p-gap" type="number" value="${node.gap}" min="0">
+      </div>` : ''}
+      ${cur === 'wrap' ? `
+      <div class="prop-row" style="margin-top:8px">
+        <span class="prop-label-wide">Gap H</span>
+        <input class="prop-input" id="p-gaph" type="number" value="${node.gapH}" min="0">
+        <span class="prop-label-wide">Gap V</span>
+        <input class="prop-input" id="p-gapv" type="number" value="${node.gapV}" min="0">
+      </div>` : ''}
+    </div>`;
+}
+
+// Switch a container's layout. Stack and scroll are mutually exclusive, so
+// choosing Stack clears any scroll. A full render re-flows the children under
+// the new layout (flex vs. absolute) and refreshes the panel.
+function setLayout(node, layout) {
+  node.layout = layout;
+  if (layout === 'stack') node.scroll = 'none';
+  render();
+  saveHistory();
+}
+
 // Node types whose width/height can be Fixed / Fill / Hug.
 const SIZE_MODE_TYPES = ['container', 'image'];
 
@@ -240,7 +287,8 @@ export function renderProps() {
       </div>
       ${node.parentId ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">in <span style="color:var(--accent)">${esc(getNode(node.parentId)?.name || '?')}</span></div>` : ''}
     </div>
-    ${node.type === 'container' || node.type === 'row' || node.type === 'column' ? `
+    ${node.type === 'container' ? layoutSection(node) : ''}
+    ${(node.type === 'container' && ['none', 'row', 'column'].includes(node.layout || 'none')) || node.type === 'row' || node.type === 'column' ? `
     <div class="prop-section">
       <div class="prop-section-title">Alignment</div>
       <div class="prop-row">
@@ -309,9 +357,10 @@ export function renderProps() {
     <div class="prop-section">
       <div class="prop-section-title">Scroll</div>
       <div class="shape-toggle">
-        <button class="shape-btn ${node.scroll === 'horizontal' ? 'active' : ''}" data-scroll="horizontal">Horizontal</button>
-        <button class="shape-btn ${node.scroll === 'vertical' ? 'active' : ''}" data-scroll="vertical">Vertical</button>
+        <button class="shape-btn ${node.scroll === 'horizontal' ? 'active' : ''}" data-scroll="horizontal" ${node.layout === 'stack' ? 'disabled' : ''}>Horizontal</button>
+        <button class="shape-btn ${node.scroll === 'vertical' ? 'active' : ''}" data-scroll="vertical" ${node.layout === 'stack' ? 'disabled' : ''}>Vertical</button>
       </div>
+      ${node.layout === 'stack' ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">Scrolling is off while the layout is Stack.</div>` : ''}
     </div>` : ''}
     ${node.type === 'row' || node.type === 'column' ? `
     <div class="prop-section">
@@ -470,7 +519,18 @@ export function renderProps() {
     // One handler covers every side-toggle currently in the panel (padding + margin).
     document.querySelectorAll('[data-box-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
-        boxExpanded[btn.dataset.boxToggle] = !boxExpanded[btn.dataset.boxToggle];
+        const prefix = btn.dataset.boxToggle;
+        const nowExpanded = !boxExpanded[prefix];
+        boxExpanded[prefix] = nowExpanded;
+        // Collapsing to Horizontal/Vertical flattens any per-side asymmetry to the
+        // values shown (left → right, top → bottom), so the stored data matches
+        // what the combined fields display.
+        if (!nowExpanded) {
+          const box = prefix === 'pad' ? node.padding : node.margin;
+          box.r = box.l; box.b = box.t;
+          updateNodeEl(node);
+          saveHistory();
+        }
         renderProps();
       });
     });
@@ -490,10 +550,19 @@ export function renderProps() {
     });
   }
 
-  if (node.type === 'row' || node.type === 'column') {
+  // Layout icon toggles (container only). setLayout re-renders + snapshots.
+  document.querySelectorAll('[data-layout]').forEach(btn => btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    setLayout(node, btn.dataset.layout);
+  }));
+
+  // Flex gap controls — a container's chosen layout, or a legacy row/column/wrap node.
+  const flexK = node.type === 'container' ? node.layout
+    : (node.type === 'row' || node.type === 'column' || node.type === 'wrap') ? node.type : null;
+  if (flexK === 'row' || flexK === 'column') {
     bindPropNum('p-gap', v => { node.gap = Math.max(0, v); updateNodeEl(node); });
   }
-  if (node.type === 'wrap') {
+  if (flexK === 'wrap') {
     bindPropNum('p-gaph', v => { node.gapH = Math.max(0, v); updateNodeEl(node); });
     bindPropNum('p-gapv', v => { node.gapV = Math.max(0, v); updateNodeEl(node); });
   }

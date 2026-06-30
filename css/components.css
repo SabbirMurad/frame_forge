@@ -562,6 +562,25 @@ body.sidebar-collapsed #typo-board { padding-left: 20px; }
 .align-btn:hover img { opacity: 0.8; }
 .align-btn.active img { opacity: 1; }
 
+/* Container layout picker — a row of 5 icon toggles (none + row/column/wrap/stack) */
+.layout-toggle { display: flex; gap: 4px; }
+.layout-btn {
+  flex: 1; height: 30px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+}
+.layout-btn:hover { border-color: var(--border2); }
+.layout-btn.active { background: var(--accent-glow); border-color: var(--accent); }
+.layout-btn img {
+  width: 15px; height: 15px; opacity: 0.5; pointer-events: none; transition: opacity 0.1s;
+  /* Black-stroke glyphs → white, matching the toolbar icons */
+  filter: brightness(0) invert(1);
+}
+.layout-btn:hover img { opacity: 0.85; }
+.layout-btn.active img { opacity: 1; }
+.layout-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.layout-btn:disabled:hover { border-color: var(--border); }
+
 /* Jump-to-Color-tab button when no colors exist yet */
 .goto-colors-btn {
   width: 100%; padding: 8px; border: 1px dashed var(--border2); border-radius: 7px;
