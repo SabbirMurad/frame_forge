@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameForge — Home</title>
+<link rel="icon" type="image/svg+xml" href="/assets/icons/logo.svg">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/home.css">
+</head>
+<body>
+<div id="home">
+  <!-- SIDEBAR -->
+  <aside id="home-sidebar">
+    <div class="home-brand">
+      <img class="home-logo" src="/assets/icons/logo.svg" alt="">
+      <span class="home-brand-name">FrameForge</span>
+    </div>
+    <div class="home-profile">
+      <img class="home-avatar" src="/assets/icons/avatar.svg" alt="Profile">
+      <div class="home-profile-info">
+        <span class="home-profile-name">Sabbir Hassan</span>
+        <span class="home-profile-email">sbbir0087@gmail.com</span>
+      </div>
+    </div>
+    <nav class="home-nav">
+      <button class="home-nav-item active" data-page="projects"><img src="/assets/icons/projects.svg" alt="">Projects</button>
+      <button class="home-nav-item" data-page="requests"><img src="/assets/icons/requests.svg" alt="">Requests<span class="home-nav-badge" id="requests-badge"></span></button>
+      <button class="home-nav-item" data-page="settings"><img src="/assets/icons/settings.svg" alt="">Settings</button>
+      <button class="home-nav-item" data-page="account"><img src="/assets/icons/account.svg" alt="">Account</button>
+      <button class="home-nav-item" data-page="billing"><img src="/assets/icons/billing.svg" alt="">Billing</button>
+    </nav>
+    <button class="home-logout" id="home-logout"><img src="/assets/icons/logout.svg" alt="">Logout</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="home-main">
+    <section class="home-page active" data-page="projects">
+      <div class="home-page-head">
+        <div>
+          <h1>Projects</h1>
+          <div class="home-page-sub">Open an existing project or start a new one.</div>
+        </div>
+        <button class="home-btn" id="new-project-btn"><span class="home-btn-plus">+</span> New project</button>
+      </div>
+      <div class="projects-toolbar">
+        <input id="project-search" class="projects-search" type="search" placeholder="Search projects…" autocomplete="off">
+      </div>
+      <div id="projects-grid"></div>
+    </section>
+
+    <section class="home-page" data-page="requests">
+      <div class="home-page-head"><div><h1>Requests</h1><div class="home-page-sub">People invited to collaborate on your projects. Accepting gives them edit access.</div></div></div>
+      <div id="requests-list"></div>
+    </section>
+
+    <section class="home-page" data-page="settings">
+      <div class="home-page-head"><div><h1>Settings</h1><div class="home-page-sub">Manage your workspace preferences.</div></div></div>
+      <div class="home-placeholder">Settings coming soon.</div>
+    </section>
+
+    <section class="home-page" data-page="account">
+      <div class="home-page-head"><div><h1>Account</h1><div class="home-page-sub">Your profile, sign-in and security.</div></div></div>
+
+      <div class="acct-grid">
+      <!-- Profile -->
+      <div class="acct-card">
+        <div class="acct-card-head"><h2>Profile</h2></div>
+        <div class="acct-avatar-row">
+          <img class="acct-avatar" id="acct-avatar" src="/assets/icons/avatar.svg" alt="Avatar">
+          <div>
+            <button type="button" class="acct-btn-ghost" id="avatar-change">Change photo</button>
+            <div class="acct-hint">JPG or PNG, up to 2MB.</div>
+          </div>
+          <input type="file" id="avatar-input" accept="image/png,image/jpeg" hidden>
+        </div>
+        <form class="acct-form" id="profile-form">
+          <div class="acct-field"><label>Full name</label><input type="text" value="Sabbir Hassan"></div>
+          <div class="acct-field"><label>Display name</label><input type="text" value="sabbir"></div>
+          <div class="acct-field"><label>Role</label><input type="text" placeholder="e.g. Product Designer"></div>
+          <div class="acct-field"><label>Timezone</label>
+            <div id="tz-field"></div>
+          </div>
+          <div class="acct-actions"><button type="submit" class="acct-btn">Save changes</button></div>
+        </form>
+      </div>
+
+      <!-- Email & sign-in -->
+      <div class="acct-card">
+        <div class="acct-card-head"><h2>Email &amp; sign-in</h2></div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Email address</div>
+            <div class="acct-row-val">sbbir0087@gmail.com <span class="badge-verified">Verified</span></div>
+          </div>
+        </div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Google</div>
+            <div class="acct-row-sub">Sign in with your Google account</div>
+          </div>
+          <button type="button" class="acct-btn-ghost" data-connect="Google">Connect</button>
+        </div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">GitHub</div>
+            <div class="acct-row-sub">Sign in with your GitHub account</div>
+          </div>
+          <button type="button" class="acct-btn-ghost" data-connect="GitHub">Connect</button>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div class="acct-card">
+        <div class="acct-card-head"><h2>Security</h2></div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Two-factor authentication</div>
+            <div class="acct-row-sub">Require an emailed code when signing in</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="twofa-toggle"><span class="switch-track"></span></label>
+        </div>
+        <form class="acct-form" id="password-form">
+          <div class="acct-field full"><label>Current password</label><input type="password" autocomplete="current-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div>
+          <div class="acct-field full"><label>New password</label><input type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+          <div class="acct-field full"><label>Confirm new password</label><input type="password" autocomplete="new-password" placeholder="Re-enter new password"></div>
+          <div class="acct-actions"><button type="submit" class="acct-btn">Update password</button></div>
+        </form>
+      </div>
+
+      <!-- Active sessions -->
+      <div class="acct-card">
+        <div class="acct-card-head"><h2>Active sessions</h2><button type="button" class="acct-btn-ghost" id="signout-all">Sign out everywhere</button></div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Chrome on Windows <span class="badge-current">This device</span></div>
+            <div class="acct-row-sub">Dhaka, Bangladesh &middot; Active now</div>
+          </div>
+        </div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Safari on iPhone</div>
+            <div class="acct-row-sub">Dhaka, Bangladesh &middot; 2 days ago</div>
+          </div>
+          <button type="button" class="acct-btn-ghost session-out">Sign out</button>
+        </div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Firefox on macOS</div>
+            <div class="acct-row-sub">London, UK &middot; 1 week ago</div>
+          </div>
+          <button type="button" class="acct-btn-ghost session-out">Sign out</button>
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="acct-card danger">
+        <div class="acct-card-head"><h2>Danger zone</h2></div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Export my data</div>
+            <div class="acct-row-sub">Download a copy of your projects and account data</div>
+          </div>
+          <button type="button" class="acct-btn-ghost" id="export-data">Export</button>
+        </div>
+        <div class="acct-row">
+          <div>
+            <div class="acct-row-label">Delete account</div>
+            <div class="acct-row-sub">Permanently remove your account and all data</div>
+          </div>
+          <button type="button" class="acct-btn-danger" id="delete-account">Delete</button>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="home-page" data-page="billing">
+      <div class="home-page-head"><div><h1>Billing</h1><div class="home-page-sub">Plans, invoices and payment methods.</div></div></div>
+      <div class="home-placeholder">Billing coming soon.</div>
+    </section>
+  </main>
+</div>
+<script type="module" src="/assets/js/home.js"></script>
+</body>
+</html>

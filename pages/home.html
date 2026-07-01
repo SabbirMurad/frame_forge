@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameForge — Design interfaces, export Flutter</title>
+<link rel="icon" type="image/svg+xml" href="/assets/icons/logo.svg">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/landing.css">
+</head>
+<body class="landing">
+
+<!-- Nav -->
+<header class="lp-nav">
+  <a class="lp-brand" href="/">
+    <img src="/assets/icons/logo.svg" alt="" width="28" height="28">
+    <span>FrameForge</span>
+  </a>
+  <nav class="lp-nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">How it works</a>
+    <a class="lp-nav-signin" href="/authentication">Sign in</a>
+    <a class="lp-btn lp-btn-primary lp-btn-sm" href="/authentication">Get started</a>
+  </nav>
+</header>
+
+<!-- Hero -->
+<section class="lp-hero">
+  <div class="lp-hero-copy">
+    <span class="lp-eyebrow">Figma for developers</span>
+    <h1>Design your interface.<br><span class="lp-grad">Forge the Flutter code.</span></h1>
+    <p class="lp-lede">
+      FrameForge is a browser-based design tool that turns your layouts, design
+      tokens, and data models into clean, production-ready Flutter &amp; Dart code.
+    </p>
+    <div class="lp-hero-cta">
+      <a class="lp-btn lp-btn-primary" href="/authentication">Get started — it's free <span class="lp-arrow">&rarr;</span></a>
+      <a class="lp-btn lp-btn-ghost" href="#how">See how it works</a>
+    </div>
+    <div class="lp-hero-note">No install. Runs entirely in your browser.</div>
+  </div>
+
+  <!-- Faux editor preview -->
+  <div class="lp-preview" aria-hidden="true">
+    <div class="lp-window">
+      <div class="lp-window-bar">
+        <span class="lp-dot"></span><span class="lp-dot"></span><span class="lp-dot"></span>
+        <span class="lp-window-title">untitled — FrameForge</span>
+      </div>
+      <div class="lp-window-body">
+        <div class="lp-rail">
+          <span class="lp-rail-i is-active"></span>
+          <span class="lp-rail-i"></span>
+          <span class="lp-rail-i"></span>
+          <span class="lp-rail-i"></span>
+        </div>
+        <div class="lp-canvas">
+          <div class="lp-frame">
+            <div class="lp-row">
+              <div class="lp-avatar"></div>
+              <div class="lp-lines">
+                <div class="lp-line w70"></div>
+                <div class="lp-line w40"></div>
+              </div>
+            </div>
+            <div class="lp-card-block"></div>
+            <div class="lp-chips">
+              <span class="lp-chip"></span><span class="lp-chip"></span><span class="lp-chip"></span>
+            </div>
+            <div class="lp-cta-block"></div>
+          </div>
+        </div>
+        <div class="lp-code">
+          <div class="lp-code-tab">main.dart</div>
+<pre><span class="c-kw">class</span> <span class="c-ty">ProfileCard</span> <span class="c-kw">extends</span> <span class="c-ty">StatelessWidget</span> {
+  <span class="c-an">@override</span>
+  <span class="c-ty">Widget</span> build(<span class="c-ty">BuildContext</span> c) {
+    <span class="c-kw">return</span> <span class="c-ty">Container</span>(
+      padding: <span class="c-ty">EdgeInsets</span>.all(<span class="c-nu">16</span>),
+      decoration: <span class="c-ty">BoxDecoration</span>(
+        color: <span class="c-ty">AppColors</span>.surface,
+        borderRadius:
+          <span class="c-ty">BorderRadius</span>.circular(<span class="c-nu">12</span>),
+      ),
+      child: <span class="c-ty">Column</span>(<span class="c-co">/* … */</span>),
+    );
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="lp-section" id="features">
+  <div class="lp-section-head">
+    <h2>Everything from canvas to code</h2>
+    <p>One tool for the whole front end — design it, structure your data, and ship the code.</p>
+  </div>
+  <div class="lp-grid">
+    <article class="lp-feature">
+      <div class="lp-feature-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/></svg>
+      </div>
+      <h3>Visual canvas</h3>
+      <p>Frames, containers, text and images with auto-layout — row, column, wrap or stack. Drag, snap, align and nest.</p>
+    </article>
+    <article class="lp-feature">
+      <div class="lp-feature-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.4" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <h3>Design tokens</h3>
+      <p>Reusable color variables and typography styles, defined once and applied everywhere across your design.</p>
+    </article>
+    <article class="lp-feature">
+      <div class="lp-feature-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+      </div>
+      <h3>Models &amp; mock data</h3>
+      <p>Define typed data models and enums, then generate realistic mock instances to design against real-shaped data.</p>
+    </article>
+    <article class="lp-feature">
+      <div class="lp-feature-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>
+      </div>
+      <h3>Flutter code export</h3>
+      <p>Turn your models and providers into clean, idiomatic Dart files with a single click — ready to drop into your app.</p>
+    </article>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="lp-section lp-how" id="how">
+  <div class="lp-section-head">
+    <h2>From idea to implementation in three steps</h2>
+    <p>Watch a two-minute tour, then dive into the full guide.</p>
+  </div>
+
+  <!-- Intro video — replace VIDEO_ID with your YouTube video id -->
+  <div class="lp-video-wrap">
+    <div class="lp-video">
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/VIDEO_ID"
+        title="FrameForge — intro"
+        loading="lazy"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen></iframe>
+    </div>
+    <div class="lp-video-actions">
+      <!-- replace PLAYLIST_ID with your YouTube playlist id -->
+      <a class="lp-btn lp-btn-ghost" href="https://www.youtube.com/playlist?list=PLAYLIST_ID" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 11h13M3 16h8"/><path d="M16 13.5l5 2.75-5 2.75z" fill="currentColor" stroke="none"/></svg>
+        View full guideline
+      </a>
+    </div>
+  </div>
+
+  <div class="lp-steps">
+    <div class="lp-step">
+      <span class="lp-step-n">01</span>
+      <h3>Design</h3>
+      <p>Lay out your screens on an infinite canvas with auto-layout, tokens and components.</p>
+    </div>
+    <div class="lp-step">
+      <span class="lp-step-n">02</span>
+      <h3>Define</h3>
+      <p>Model your data with typed fields and enums, and preview it with generated mock data.</p>
+    </div>
+    <div class="lp-step">
+      <span class="lp-step-n">03</span>
+      <h3>Export</h3>
+      <p>Generate clean Flutter &amp; Dart code and continue building in your editor of choice.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="lp-cta">
+  <div class="lp-cta-inner">
+    <h2>Ready to forge your first project?</h2>
+    <p>Create an account and start designing in seconds.</p>
+    <a class="lp-btn lp-btn-primary lp-btn-lg" href="/authentication">Get started <span class="lp-arrow">&rarr;</span></a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="lp-footer">
+  <div class="lp-brand lp-brand-sm">
+    <img src="/assets/icons/logo.svg" alt="" width="22" height="22">
+    <span>FrameForge</span>
+  </div>
+  <span class="lp-footer-copy">&copy; 2026 FrameForge. Design, modeled and shipped in the browser.</span>
+  <a class="lp-footer-link" href="/authentication">Get started</a>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Rust build artifacts
+/target/
+
+# Environment & secrets — never commit these (contain live API keys/passwords)
+.env
+.env.*
+!.env.example
+
+# TLS certificates & private keys (dev)
+/.dev_tls/
+
+# Local databases
+/database/
+*.db
+
+# Logs
+*.log
+
+# Stray / backup files
+Cargo copy.toml
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

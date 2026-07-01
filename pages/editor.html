@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameForge</title>
+<link rel="icon" type="image/svg+xml" href="/assets/icons/logo.svg">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/canvas.css">
+</head>
+<body class="design-mode">
+<div id="app">
+
+  <!-- TOOLBAR -->
+  <div id="toolbar">
+    <div class="tool-group">
+      <button class="tool-btn active" id="tool-select" data-tool="select" data-tooltip="Select (V)">
+        <img src="/assets/icons/select.svg" alt="Select" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-hand" data-tool="hand" data-tooltip="Hand (H)">
+        <img src="/assets/icons/hand.svg" alt="Hand" width="15" height="15">
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <button class="tool-btn" id="tool-frame" data-tooltip="Frame (F)">
+        <img src="/assets/icons/frame.svg" alt="Frame" width="14" height="14">
+      </button>
+      <button class="tool-btn" data-tool="container" data-tooltip="Container (R)">
+        <img src="/assets/icons/rectangle.svg" alt="Container" width="14" height="14">
+      </button>
+      <button class="tool-btn" data-tool="text" data-tooltip="Text (T)">
+        <img src="/assets/icons/text.svg" alt="Text" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-image" data-tooltip="Image">
+        <img src="/assets/icons/image.svg" alt="Image" width="14" height="14">
+      </button>
+      <button class="tool-btn" id="tool-icon" data-tooltip="Icon">
+        <img src="/assets/icons/icon.svg" alt="Icon" width="14" height="14">
+      </button>
+    </div>
+
+  </div>
+
+  <!-- LEFT SIDEBAR -->
+  <div id="layers-panel">
+    <div id="top-card">
+      <div id="project-header">
+        <input id="project-name" type="text" value="Untitled" spellcheck="false" placeholder="Project name">
+        <button id="sidebar-toggle" class="icon-btn" title="Collapse sidebar"><img src="/assets/icons/panel-left-close.svg" alt="Collapse sidebar"></button>
+      </div>
+      <div id="nav-icons">
+        <button type="button" class="nav-icon-btn" id="nav-home" data-tooltip="Home"><img src="/assets/icons/home.svg" alt="Home"></button>
+        <button type="button" class="nav-icon-btn" id="nav-share" data-tooltip="Share"><img src="/assets/icons/share.svg" alt="Share"></button>
+        <button type="button" class="nav-icon-btn" id="nav-sync" data-tooltip="Sync"><img src="/assets/icons/sync.svg" alt="Sync"></button>
+        <button type="button" class="nav-icon-btn" id="btn-export-code" data-tooltip="Export"><img src="/assets/icons/export.svg" alt="Export"></button>
+        <button type="button" class="nav-icon-btn" id="nav-logout" data-tooltip="Logout"><img src="/assets/icons/logout.svg" alt="Logout"></button>
+      </div>
+      <div id="profile">
+        <img id="profile-avatar" src="/assets/icons/avatar.svg" alt="Profile">
+        <div id="profile-info">
+          <span id="profile-name">Sabbir Hassan</span>
+          <span id="profile-email">sbbir0087@gmail.com</span>
+        </div>
+      </div>
+    </div>
+    <div id="nav-card">
+      <div id="mode-tabs">
+        <button class="mode-tab active" data-mode="design">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="10" height="10" rx="2"/><circle cx="15.5" cy="15.5" r="5"/></svg></span>
+          <span class="mode-tab-label">Design</span>
+        </button>
+        <button class="mode-tab" data-mode="color">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.3-.9-.6-1.2-.3-.3-.5-.6-.5-1 0-.8.7-1.4 1.5-1.4H15a4 4 0 0 0 4-4c0-4.4-3.1-7.8-7-7.8z"/><circle cx="7.5" cy="11.5" r=".4" fill="currentColor"/><circle cx="12" cy="8" r=".4" fill="currentColor"/><circle cx="16" cy="11" r=".4" fill="currentColor"/></svg></span>
+          <span class="mode-tab-label">Color</span>
+        </button>
+        <button class="mode-tab" data-mode="typography">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none"><text x="12" y="17.5" text-anchor="middle" font-family="var(--sans)" font-size="16" font-weight="700" fill="currentColor">A</text></svg></span>
+          <span class="mode-tab-label">Typography</span>
+        </button>
+        <button class="mode-tab" data-mode="model">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span>
+          <span class="mode-tab-label">Model</span>
+        </button>
+        <button class="mode-tab" data-mode="mock">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="5" rx="1.5"/><rect x="3.5" y="11" width="17" height="5" rx="1.5"/><path d="M7 6.5h.01M7 13.5h.01"/><path d="M17 18.5l1.4 1.4 2.6-2.8"/></svg></span>
+          <span class="mode-tab-label">Mock Data</span>
+        </button>
+        <button class="mode-tab" data-mode="api">
+          <span class="mode-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 4C6.6 4 6 5.4 6 7.3s.4 3-.9 4.7c1.3 1.7.9 2.8.9 4.7S6.6 20 8.5 20"/><path d="M15.5 4c1.9 0 2.5 1.4 2.5 3.3s-.4 3 .9 4.7c-1.3 1.7-.9 2.8-.9 4.7S17.4 20 15.5 20"/></svg></span>
+          <span class="mode-tab-label">Provider</span>
+        </button>
+      </div>
+    </div>
+    <div id="design-view">
+      <div class="panel-header">
+        <span class="panel-title">Layers</span>
+        <button class="panel-action" id="btn-add-layer" title="Add element">+</button>
+      </div>
+      <div id="layers-list"></div>
+    </div>
+    <!-- COLOR CONTROLLER (Color tab) — sits under the tabs, like the Layers card -->
+    <div id="color-panel"></div>
+    <!-- TYPOGRAPHY CONTROLLER (Typography tab) — also under the tabs -->
+    <div id="typo-panel"></div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="ruler-corner"></div>
+    <canvas id="ruler-h-canvas"></canvas>
+    <canvas id="ruler-v-canvas"></canvas>
+    <div id="canvas"></div>
+    <div id="selection-box"></div>
+    <div id="snap-guides"></div>
+    <div id="model-board"></div>
+    <div id="mock-board"></div>
+    <div id="api-board"></div>
+    <div id="color-board"></div>
+    <div id="typo-board"></div>
+  </div>
+
+  <!-- PROPERTIES PANEL -->
+  <div id="props-panel">
+    <div class="panel-header">
+      <span class="panel-title">Properties</span>
+    </div>
+    <div id="props-content">
+      <div class="empty-state" id="no-selection">Select an element<br>to edit its properties</div>
+      <div id="props-fields" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div id="share-modal" class="modal-overlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Share project</h3>
+      <button type="button" class="modal-close" id="share-close" aria-label="Close">&times;</button>
+    </div>
+    <p class="modal-sub">Invite someone by email. Once they accept the request from their home page, they can view and edit this project.</p>
+    <form id="share-form">
+      <input type="email" id="share-email" class="modal-input" placeholder="name@example.com" required autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="modal-btn-ghost" id="share-cancel">Cancel</button>
+        <button type="submit" class="modal-btn">Send invite</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Icon Picker Modal (Iconify) -->
+<div id="icon-modal" class="modal-overlay" hidden>
+  <div class="modal icon-modal">
+    <div class="modal-head">
+      <h3 id="icon-modal-title">Add icon</h3>
+      <button type="button" class="modal-close" id="icon-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="icon-styles" id="icon-styles"></div>
+    <input type="text" id="icon-search" class="modal-input" placeholder="Search icons — e.g. home, user, arrow" autocomplete="off" spellcheck="false">
+    <div class="icon-results" id="icon-results"></div>
+    <div class="icon-modal-foot">Powered by <a href="https://iconify.design" target="_blank" rel="noopener">Iconify</a> — free &amp; open-source icon sets.</div>
+  </div>
+</div>
+
+<!-- Font Picker Modal (Google Fonts) -->
+<div id="font-modal" class="modal-overlay" hidden>
+  <div class="modal icon-modal">
+    <div class="modal-head">
+      <h3>Choose font</h3>
+      <button type="button" class="modal-close" id="font-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="icon-styles" id="font-cats"></div>
+    <input type="text" id="font-search" class="modal-input" placeholder="Search fonts — e.g. Inter, Poppins, Lora" autocomplete="off" spellcheck="false">
+    <div class="font-results" id="font-results"></div>
+    <div class="icon-modal-foot">Powered by <a href="https://fonts.google.com" target="_blank" rel="noopener">Google Fonts</a> — free &amp; open-source typefaces.</div>
+  </div>
+</div>
+
+<!-- Image Picker Modal (Openverse) -->
+<div id="image-modal" class="modal-overlay" hidden>
+  <div class="modal icon-modal">
+    <div class="modal-head">
+      <h3>Add image</h3>
+      <button type="button" class="modal-close" id="image-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="image-modal-bar">
+      <div class="icon-styles" id="image-cats"></div>
+      <button type="button" class="modal-btn-ghost" id="image-upload">Upload from device</button>
+    </div>
+    <input type="text" id="image-search" class="modal-input" placeholder="Search photos &amp; illustrations — e.g. mountain, office, texture" autocomplete="off" spellcheck="false">
+    <div class="image-hint">Click to add one &middot; Shift-click to select several</div>
+    <div class="img-results" id="image-results"></div>
+    <div class="image-action-bar" id="image-action-bar" hidden>
+      <span class="image-action-count" id="image-selcount">0 selected</span>
+      <div class="image-action-btns">
+        <button type="button" class="modal-btn-ghost" id="image-clear-sel">Clear</button>
+        <button type="button" class="modal-btn" id="image-add-sel">Add images</button>
+      </div>
+    </div>
+    <div class="icon-modal-foot">Powered by <a href="https://openverse.org" target="_blank" rel="noopener">Openverse</a> — free &amp; openly-licensed images.</div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" data-action="duplicate"><span>Duplicate</span><span class="shortcut">&#8984;D</span></div>
+  <div class="ctx-item" data-action="group"><span>Group</span><span class="shortcut">&#8984;G</span></div>
+  <div class="ctx-item" data-action="front"><span>Bring to Front</span></div>
+  <div class="ctx-item" data-action="back"><span>Send to Back</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" data-action="delete"><span>Delete</span><span class="shortcut">&#9003;</span></div>
+</div>
+
+<!-- Add Menu -->
+<div id="add-menu">
+  <div class="ctx-item" data-addtype="container">&#x25AD; Container</div>
+  <div class="ctx-item" data-addtype="text">T Text</div>
+</div>
+
+<!-- Frame Preset Menu -->
+<div id="frame-menu">
+  <div class="frame-menu-cat">Phone</div>
+  <div class="frame-menu-item" data-w="402" data-h="874"><span>iPhone 17</span><span class="frame-dim">402&#215;874</span></div>
+  <div class="frame-menu-item" data-w="402" data-h="874"><span>iPhone 16 &amp; 17 Pro</span><span class="frame-dim">402&#215;874</span></div>
+  <div class="frame-menu-item" data-w="393" data-h="852"><span>iPhone 16</span><span class="frame-dim">393&#215;852</span></div>
+  <div class="frame-menu-item" data-w="440" data-h="956"><span>iPhone 16 &amp; 17 Pro Max</span><span class="frame-dim">440&#215;956</span></div>
+  <div class="frame-menu-item" data-w="430" data-h="932"><span>iPhone 16 Plus</span><span class="frame-dim">430&#215;932</span></div>
+  <div class="frame-menu-item" data-w="420" data-h="912"><span>iPhone Air</span><span class="frame-dim">420&#215;912</span></div>
+  <div class="frame-menu-item" data-w="430" data-h="932"><span>iPhone 14 &amp; 15 Pro Max</span><span class="frame-dim">430&#215;932</span></div>
+  <div class="frame-menu-item" data-w="393" data-h="852"><span>iPhone 14 &amp; 15 Pro</span><span class="frame-dim">393&#215;852</span></div>
+  <div class="frame-menu-item" data-w="390" data-h="844"><span>iPhone 13 &amp; 14</span><span class="frame-dim">390&#215;844</span></div>
+  <div class="frame-menu-item" data-w="428" data-h="926"><span>iPhone 14 Plus</span><span class="frame-dim">428&#215;926</span></div>
+  <div class="frame-menu-item" data-w="412" data-h="917"><span>Android Compact</span><span class="frame-dim">412&#215;917</span></div>
+  <div class="frame-menu-item" data-w="700" data-h="840"><span>Android Medium</span><span class="frame-dim">700&#215;840</span></div>
+</div>
+
+<input type="file" id="image-input" accept="image/*" style="display:none">
+
+<button id="sidebar-open" title="Open sidebar"><img src="/assets/icons/panel-left-open.svg" alt="Open sidebar"></button>
+
+<div id="toast"></div>
+
+<script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>
